@@ -1,0 +1,2 @@
+experiment_id,max_generations,population_size,model_name,task_definition,target_preference
+dummy_test,2,3,dummy,Generate Pokemon,Fire Type

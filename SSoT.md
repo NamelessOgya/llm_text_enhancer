@@ -10,8 +10,11 @@
 
 ### 2.2. 設定管理と実行パイプライン
 - **設定管理**: 実験設定はCSVファイルで管理する。
-  - CSVには実験ID、最大世代数、個体数 `k`、モデル名、その他ハイパーパラメータ等を定義。
-- **パイプライン生成**: CSVファイルを読み込み、実験実行用のシェルスクリプトを生成するスクリプト (`cmd/generate_pipeline.py` 等) を作成する。
+  - CSVには実験ID、最大世代数、個体数 `k`、モデル名、`task_definition`、`target_preference` 等を定義。
+  - **Task Definition (ドメイン定義)**: 生成タスクの一般的な指示（例: "実在するポケモンの説明を生成せよ"）。Generatorにはこれのみが与えられる。
+  - **Target Preference (隠された嗜好)**: 評価の正解基準（例: "炎タイプのポケモン"）。Generatorには**一切公開されない**。Evaluatorのみが使用する。
+
+- **パイプライン生成**: CSVファイルを読み込み、実験実行用のシェルスクリプトを生成するスクリプト (`src/generate_pipeline.py` 等) を作成する。
   - 生成されたパイプラインスクリプトを実行することで実験を行う。
 - **冪等性 (Skip)**: 各実験の最終成果物が既に存在する場合、その実験ステップはスキップされる仕組みとする。
 
@@ -19,10 +22,13 @@
 ```
 .
 ├── src/                # ソースコード
-├── cmd/                # 実行用シェルスクリプト
+│   ├── generate_pipeline.py  # CSVから実行スクリプトを生成
+│   ├── llm/
+│   │   ├── openai_adapter.py # OpenAI API アダプター
+│   │   └── dummy_adapter.py  # テスト用ダミーアダプター
+├── cmd/                # 実行用シェルスクリプト（.shのみ配置可能）
 │   ├── generate_next_step.sh
 │   ├── evaluate_step.sh
-│   └── generate_pipeline.py  # CSVから実行スクリプトを生成
 ├── tests/              # テストコード
 ├── config/
 │   └── experiments.csv # 実験設定一覧
@@ -50,15 +56,15 @@
 - **入力**: 
   - 履歴、評価 (`metrics.json`)、実験設定ID
 - **処理**:
-  - **初期化 (n=0)**: 履歴なしの場合、初期候補を生成。
-  - **更新 (n>0)**: 過去の評価に基づき、遺伝的アルゴリズム/LLMで次世代候補 `k` 個を生成。
+  - **初期化 (n=0)**: `task_definition` に基づき初期候補を生成（`target_preference` は使用しない）。
+  - **更新 (n>0)**: 過去の評価に基づき、遺伝的アルゴリズム/LLMで次世代候補 `k` 個を生成。変異(Mutation)の際も `task_definition` のみを使用し、正解情報はリークさせない。
 - **出力**:
   - `result/[setting]/iter[n+1]/texts/` (生成テキスト)
   - `result/[setting]/iter[n+1]/input_prompts/` (生成プロンプト)
 
 ### 3.2. 評価 (`cmd/evaluate_step.sh`)
 - **入力**: 第`n+1`世代テキスト
-- **処理**: 所定基準でスコアリング。
+- **処理**: `target_preference` を正解として使用し、テキストとの適合度をスコアリング。
 - **出力**: `result/[setting]/iter[n+1]/metrics.json`
 - **Metricsスキーマ**: 各プロンプトサンプルに対応したスコアのみを単純にリスト等の形式で保持する。
 
@@ -74,3 +80,11 @@
 ### 5.2. ログ・コスト管理
 - **ログ**: 実行ログ（APIレスポンス等含む）を `result/[setting]/logs/` 配下に保存。
 - **トークン数**: 消費したトークン数を記録し、同ディレクトリに保存可能な形式で出力する。
+
+## 6. テスト・検証機能
+### 6.1. Dummy Adapter
+- **目的**: APIコストをかけずにパイプラインの動作検証を行うため、`DummyAdapter` (`src/llm/dummy_adapter.py`) を提供する。
+- **動作**: 
+  - 生成時: ランダムなポケモン名を返す。
+  - 評価時: ランダムなスコア (0-10) を返す。
+- **使用方法**: `experiments.csv` の `model_name` に `dummy` を指定することで使用可能。
