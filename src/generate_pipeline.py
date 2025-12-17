@@ -13,7 +13,12 @@ def main():
     
     with open(args.config, 'r') as f:
         reader = csv.DictReader(f)
-        experiments = list(reader)
+        try:
+             # Just iterate, DictReader handles headers automatically
+            experiments = list(reader)
+        except csv.Error as e:
+            print(f"Error reading CSV: {e}")
+            return
 
     with open(args.output, 'w') as f:
         f.write("#!/bin/bash\n")
@@ -25,6 +30,10 @@ def main():
             max_gen = int(exp['max_generations'])
             pop_size = exp['population_size']
             model = exp['model_name']
+            
+            # Default to 'llm' if not present (backward compatibility)
+            evaluator = exp.get('evaluator_type', 'llm')
+            
             task_def = exp['task_definition']
             target = exp['target_preference']
             
@@ -39,11 +48,11 @@ def main():
                 f.write(f"if [ ! -f \"{metrics_file}\" ]; then\n")
                 f.write(f"    echo \"Running Iteration {i}\"\n")
                 
-                # Generate - PASS TASK_DEFINITION
+                # Generate
                 f.write(f"    ./cmd/generate_next_step.sh \"{exp_id}\" \"{i}\" \"{pop_size}\" \"{model}\" \"{task_def}\"\n")
                 
-                # Evaluate - PASS TARGET_PREFERENCE (Hidden from generator)
-                f.write(f"    ./cmd/evaluate_step.sh \"{exp_id}\" \"{i}\" \"{model}\" \"{target}\"\n")
+                # Evaluate - PASS EVALUATOR_TYPE
+                f.write(f"    ./cmd/evaluate_step.sh \"{exp_id}\" \"{i}\" \"{model}\" \"{evaluator}\" \"{target}\"\n")
                 
                 f.write("else\n")
                 f.write(f"    echo \"Skipping Iteration {i} (already completed)\"\n")

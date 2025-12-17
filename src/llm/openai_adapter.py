@@ -2,6 +2,7 @@ import os
 import time
 import logging
 import openai
+from dotenv import load_dotenv
 from typing import List, Dict, Any, Optional
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
@@ -12,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 class OpenAIAdapter(LLMInterface):
     def __init__(self, model_name: str = "gpt-4o"):
+        load_dotenv()
         self.model_name = model_name
         self.client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.token_usage = {

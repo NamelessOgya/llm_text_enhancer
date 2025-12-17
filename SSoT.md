@@ -13,6 +13,10 @@
   - CSVには実験ID、最大世代数、個体数 `k`、モデル名、`task_definition`、`target_preference` 等を定義。
   - **Task Definition (ドメイン定義)**: 生成タスクの一般的な指示（例: "実在するポケモンの説明を生成せよ"）。Generatorにはこれのみが与えられる。
   - **Target Preference (隠された嗜好)**: 評価の正解基準（例: "炎タイプのポケモン"）。Generatorには**一切公開されない**。Evaluatorのみが使用する。
+  - **Evaluator Type**: 評価手法を指定する。
+    - `llm`: LLMを用いた評価。
+    - `rule_keyword`: キーワードの一致率による評価。
+    - `rule_regex`: 正規表現マッチングによる評価。
 
 - **パイプライン生成**: CSVファイルを読み込み、実験実行用のシェルスクリプトを生成するスクリプト (`src/generate_pipeline.py` 等) を作成する。
   - 生成されたパイプラインスクリプトを実行することで実験を行う。
@@ -26,12 +30,21 @@
 │   ├── llm/
 │   │   ├── openai_adapter.py # OpenAI API アダプター
 │   │   └── dummy_adapter.py  # テスト用ダミーアダプター
+│   ├── evaluation/       # 評価モジュール
+│   │   ├── interface.py
+│   │   ├── llm_evaluator.py
+│   │   └── rule_evaluator.py
 ├── cmd/                # 実行用シェルスクリプト（.shのみ配置可能）
 │   ├── generate_next_step.sh
 │   ├── evaluate_step.sh
 ├── tests/              # テストコード
+│   ├── test_pipeline.py
+│   ├── test_core_logic.py
+│   └── test_integration_flow.py
 ├── config/
 │   └── experiments.csv # 実験設定一覧
+├── .env.example        # 環境変数テンプレート
+├── .gitignore          # Git除外設定
 └── result/             # 実験結果出力
     └── [実験設定ID]/   # 実行時の引数で指定
         ├── logs/       # ログ・コスト管理
@@ -68,6 +81,12 @@
 - **出力**: `result/[setting]/iter[n+1]/metrics.json`
 - **Metricsスキーマ**: 各プロンプトサンプルに対応したスコアのみを単純にリスト等の形式で保持する。
 
+### 3.3. ルールベース評価器の追加手順
+新しいルールベース評価器を追加する場合は、以下の手順に従う。
+1. `src/evaluation/rule_evaluator.py` に `Evaluator` を継承したクラスを作成し、`evaluate` メソッドを実装する。
+2. 同ファイルの `get_rule_evaluator` ファクトリ関数に、新しい `rule_type` とクラスのマッピングを追加する。
+3. `experiments.csv` の `evaluator_type` に新しいタイプを指定して実行する。
+
 ## 4. サンプルタスク
 **タスク名**: ポケモン推測ゲーム (Pokemon Guessing Game)
 - GeneratorがEvaluatorの隠された嗜好（例：炎タイプ好き）を、点数フィードバックのみから学習し、適合するテキストを生成することを目指す。
@@ -80,6 +99,10 @@
 ### 5.2. ログ・コスト管理
 - **ログ**: 実行ログ（APIレスポンス等含む）を `result/[setting]/logs/` 配下に保存。
 - **トークン数**: 消費したトークン数を記録し、同ディレクトリに保存可能な形式で出力する。
+
+### 5.3. 環境変数管理
+- **APIキー**: `.env` ファイルに `OPENAI_API_KEY=xxx` の形式で保存することで、スクリプト実行時に自動的に読み込まれる。
+- `.env` ファイルはGit管理外とし、テンプレート `.env.example` を提供する。
 
 ## 6. テスト・検証機能
 ### 6.1. Dummy Adapter
