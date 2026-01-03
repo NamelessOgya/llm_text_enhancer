@@ -5,8 +5,7 @@ import glob
 import logging
 from typing import List, Dict
 
-from llm.openai_adapter import OpenAIAdapter
-from llm.dummy_adapter import DummyAdapter
+from llm.factory import get_llm_adapter
 from utils import setup_logging, save_token_usage
 from evaluation.llm_evaluator import LLMEvaluator
 from evaluation.rule_evaluator import get_rule_evaluator
@@ -33,6 +32,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--iteration", type=int, required=True)
     parser.add_argument("--model-name", default="gpt-4o")
+    parser.add_argument("--adapter-type", required=True, help="openai, gemini, or dummy")
     parser.add_argument("--evaluator-type", default="llm")
     parser.add_argument("--target-preference", required=True)
     parser.add_argument("--result-dir", required=True)
@@ -46,13 +46,9 @@ def main():
     
     # Initialize LLM only if needed or for token tracking if we want to track it somewhere?
     # Actually, RuleEvaluator doesn't need LLM.
-    llm = None
-    if args.model_name == "dummy":
-        llm = DummyAdapter()
-    else:
-        llm = OpenAIAdapter(model_name=args.model_name)
-
     # Factory Pattern Selection
+    llm = get_llm_adapter(args.adapter_type, args.model_name)
+    
     evaluator = None
     if args.evaluator_type == "llm":
         evaluator = LLMEvaluator(llm)

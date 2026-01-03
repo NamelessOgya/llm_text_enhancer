@@ -5,7 +5,7 @@ import glob
 import logging
 from typing import List, Dict
 
-from llm.openai_adapter import OpenAIAdapter
+
 from utils import setup_logging, save_token_usage
 
 logger = logging.getLogger(__name__)
@@ -58,6 +58,7 @@ def main():
     parser.add_argument("--iteration", type=int, required=True)
     parser.add_argument("--population-size", type=int, required=True)
     parser.add_argument("--model-name", default="gpt-4o")
+    parser.add_argument("--adapter-type", required=True, help="openai, gemini, or dummy")
     parser.add_argument("--task-definition", required=True) # Changed from target-preference
     parser.add_argument("--result-dir", required=True)
     args = parser.parse_args()
@@ -73,11 +74,8 @@ def main():
     
     setup_logging(os.path.join(logs_dir, "execution.log"))
     
-    if args.model_name == "dummy":
-        from llm.dummy_adapter import DummyAdapter
-        llm = DummyAdapter()
-    else:
-        llm = OpenAIAdapter(model_name=args.model_name)
+    from llm.factory import get_llm_adapter
+    llm = get_llm_adapter(args.adapter_type, args.model_name)
     
     prompts = []
     

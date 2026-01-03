@@ -30,6 +30,7 @@ def main():
             max_gen = int(exp['max_generations'])
             pop_size = exp['population_size']
             model = exp['model_name']
+            adapter_type = exp['adapter_type']
             
             # Default to 'llm' if not present (backward compatibility)
             evaluator = exp.get('evaluator_type', 'llm')
@@ -49,10 +50,10 @@ def main():
                 f.write(f"    echo \"Running Iteration {i}\"\n")
                 
                 # Generate
-                f.write(f"    ./cmd/generate_next_step.sh \"{exp_id}\" \"{i}\" \"{pop_size}\" \"{model}\" \"{task_def}\"\n")
+                f.write(f"    ./cmd/generate_next_step.sh \"{exp_id}\" \"{i}\" \"{pop_size}\" \"{model}\" \"{adapter_type}\" \"{task_def}\"\n")
                 
                 # Evaluate - PASS EVALUATOR_TYPE
-                f.write(f"    ./cmd/evaluate_step.sh \"{exp_id}\" \"{i}\" \"{model}\" \"{evaluator}\" \"{target}\"\n")
+                f.write(f"    ./cmd/evaluate_step.sh \"{exp_id}\" \"{i}\" \"{model}\" \"{adapter_type}\" \"{evaluator}\" \"{target}\"\n")
                 
                 f.write("else\n")
                 f.write(f"    echo \"Skipping Iteration {i} (already completed)\"\n")
