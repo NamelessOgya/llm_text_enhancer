@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import csv
 import glob
+import json
 
 class TestIntegrationFlow(unittest.TestCase):
     def setUp(self):
@@ -63,8 +64,16 @@ class TestIntegrationFlow(unittest.TestCase):
         # 4. Verify Outputs
         # Check Iteration 0
         iter0_dir = os.path.join(self.result_dir, self.experiment_id, "iter0")
-        self.assertTrue(os.path.exists(os.path.join(iter0_dir, "metrics.json")))
+        metrics_file = os.path.join(iter0_dir, "metrics.json")
+        self.assertTrue(os.path.exists(metrics_file))
         self.assertTrue(len(glob.glob(os.path.join(iter0_dir, "texts", "*.txt"))) > 0)
+        
+        # Verify content of metrics.json contains 'reason'
+        with open(metrics_file, 'r') as f:
+            metrics = json.load(f)
+            self.assertTrue(len(metrics) > 0)
+            self.assertIn("reason", metrics[0])
+            self.assertIn("score", metrics[0])
         
         # Check Iteration 1
         iter1_dir = os.path.join(self.result_dir, self.experiment_id, "iter1")

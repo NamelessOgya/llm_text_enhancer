@@ -8,7 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src'
 from llm.dummy_adapter import DummyAdapter
 from generate import generate_initial_prompts, evolve_prompts
 from evaluation.llm_evaluator import LLMEvaluator
-from evaluation.rule_evaluator import KeywordRuleEvaluator, RegexRuleEvaluator
+from evaluation.rule_evaluator import KeywordRuleEvaluator, RegexRuleEvaluator, get_rule_evaluator
 
 class TestCoreLogic(unittest.TestCase):
     def setUp(self):
@@ -45,32 +45,35 @@ class TestCoreLogic(unittest.TestCase):
 
     def test_llm_evaluator_with_dummy(self):
         evaluator = LLMEvaluator(self.llm)
-        score = evaluator.evaluate("Pikachu is electric", "Electric Type")
+        score, reason = evaluator.evaluate("Pikachu is electric", "Electric Type")
         self.assertIsInstance(score, float)
         self.assertTrue(0.0 <= score <= 10.0)
+        self.assertIsInstance(reason, str)
 
     def test_keyword_rule_evaluator(self):
         evaluator = KeywordRuleEvaluator()
         # Perfect match
-        score = evaluator.evaluate("fire type pokemon", "fire type")
+        score, reason = evaluator.evaluate("fire type pokemon", "fire type")
         self.assertEqual(score, 10.0)
+        self.assertEqual(reason, "")
         # Partial match
-        score = evaluator.evaluate("fire pokemon", "fire type") # 1/2 matches = 5.0? No, intersection(fire, pokemon) & (fire, type) -> fire. 1/2 = 5.0.
+        score, reason = evaluator.evaluate("fire pokemon", "fire type") # 1/2 matches = 5.0? No, intersection(fire, pokemon) & (fire, type) -> fire. 1/2 = 5.0.
         self.assertEqual(score, 5.0)
         # No match
-        score = evaluator.evaluate("water", "fire")
+        score, reason = evaluator.evaluate("water", "fire")
         self.assertEqual(score, 0.0)
 
     def test_regex_rule_evaluator(self):
         evaluator = RegexRuleEvaluator()
         # Match
-        score = evaluator.evaluate("This is a Charizard", "Charizard")
+        score, reason = evaluator.evaluate("This is a Charizard", "Charizard")
         self.assertEqual(score, 10.0)
+        self.assertEqual(reason, "")
         # Case insensitive match
-        score = evaluator.evaluate("charizard", "Charizard")
+        score, reason = evaluator.evaluate("charizard", "Charizard")
         self.assertEqual(score, 10.0)
         # No match
-        score = evaluator.evaluate("Pikachu", "Charizard")
+        score, reason = evaluator.evaluate("Pikachu", "Charizard")
         self.assertEqual(score, 0.0)
 
 if __name__ == '__main__':

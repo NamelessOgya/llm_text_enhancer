@@ -19,11 +19,12 @@ def evaluate_texts(evaluator, text_files: List[str], target: str) -> List[Dict]:
         with open(t_file, 'r') as f:
             content = f.read()
             
-        score = evaluator.evaluate(content, target)
+        score, reason = evaluator.evaluate(content, target)
         
         metrics.append({
             "file": os.path.basename(t_file),
-            "score": score
+            "score": score,
+            "reason": reason
         })
         
     return metrics
