@@ -8,13 +8,15 @@ from typing import List, Dict
 
 from utils import setup_logging, save_token_usage
 
+from llm.interface import LLMInterface
+
 logger = logging.getLogger(__name__)
 
 def load_metrics(metrics_path: str) -> List[Dict]:
     with open(metrics_path, 'r') as f:
         return json.load(f)
 
-def generate_initial_prompts(llm: OpenAIAdapter, k: int, task_def: str) -> List[str]:
+def generate_initial_prompts(llm: LLMInterface, k: int, task_def: str) -> List[str]:
     # Simple initialization or ask LLM
     logger.info("Generating initial population...")
     prompt = f"Generate {k} distinct prompts that would lead an AI to generate text for the following task: '{task_def}'. Return only the prompts, one per line."
@@ -25,7 +27,7 @@ def generate_initial_prompts(llm: OpenAIAdapter, k: int, task_def: str) -> List[
         prompts.append(f"Generate text for: {task_def}")
     return prompts
 
-def evolve_prompts(llm: OpenAIAdapter, prev_prompts: List[str], metrics: List[Dict], k: int, task_def: str) -> List[str]:
+def evolve_prompts(llm: LLMInterface, prev_prompts: List[str], metrics: List[Dict], k: int, task_def: str) -> List[str]:
     logger.info("Evolving population...")
     
     scored_prompts = []

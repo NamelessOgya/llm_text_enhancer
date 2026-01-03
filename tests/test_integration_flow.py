@@ -19,8 +19,8 @@ class TestIntegrationFlow(unittest.TestCase):
         
         with open(self.test_config_path, 'w') as f:
             writer = csv.writer(f)
-            writer.writerow(["experiment_id", "max_generations", "population_size", "model_name", "evaluator_type", "task_definition", "target_preference"])
-            writer.writerow([self.experiment_id, "2", "3", "dummy", "rule_keyword", "Generate valid Pokemon", "Fire Type"])
+            writer.writerow(["experiment_id", "max_generations", "population_size", "model_name", "adapter_type", "evaluator_type", "task_definition", "target_preference"])
+            writer.writerow([self.experiment_id, "2", "3", "dummy", "dummy", "rule_keyword", "Generate valid Pokemon", "Fire Type"])
 
     def tearDown(self):
         # Cleanup

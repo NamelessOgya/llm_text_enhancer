@@ -7,8 +7,8 @@ class TestPipeline(unittest.TestCase):
     def setUp(self):
         self.config_path = "tests/test_experiments.csv"
         with open(self.config_path, 'w') as f:
-            f.write("experiment_id,max_generations,population_size,model_name,task_definition,target_preference\n")
-            f.write("test_exp,2,2,gpt-3.5,Test Task Def,Test Pref\n")
+            f.write("experiment_id,max_generations,population_size,model_name,adapter_type,evaluator_type,task_definition,target_preference\n")
+            f.write("test_exp,2,2,gpt-3.5,openai,llm,Test Task Def,Test Pref\n")
             
         self.output_script = "tests/run_test_pipeline.sh"
 
