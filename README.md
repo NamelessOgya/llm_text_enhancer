@@ -46,8 +46,20 @@ my_exp,5,5,gpt-4o,llm,Generate a short story.,Horror story
 
 コンテナ内でパイプラインスクリプトを生成し、実行します。
 
+1. インタラクティブモードでコンテナに入ります:
+
 ```bash
-docker run --rm -v $(pwd):/app llm_text_enhancer /bin/bash -c "python3 src/generate_pipeline.py && ./run_pipeline.sh"
+docker run --rm -it -v $(pwd):/app llm_text_enhancer /bin/bash
+```
+
+2. コンテナ内で以下のコマンドを実行します:
+
+```bash
+# パイプライン生成
+python3 src/generate_pipeline.py
+
+# 実験実行
+./run_pipeline.sh
 ```
 
 ## 実行方法 (ローカル)
