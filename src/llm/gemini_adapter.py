@@ -1,6 +1,7 @@
 import os
 import logging
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 from typing import List, Dict, Any, Optional
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -8,6 +9,11 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 from .interface import LLMInterface
 
 logging.basicConfig(level=logging.INFO)
+# Suppress noisy logs from client libraries
+logging.getLogger("google_genai").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 class GeminiAdapter(LLMInterface):
@@ -19,9 +25,8 @@ class GeminiAdapter(LLMInterface):
         if not api_key:
             raise ValueError("GEMINI_API_KEY not found in environment variables.")
         
-        genai.configure(api_key=api_key)
+        self.client = genai.Client(api_key=api_key)
         self.model_name = model_name
-        self.model = genai.GenerativeModel(model_name)
         
         # Token usage tracking for Gemini is per-request, so we accumulate it.
         # Note: accurate tokenizer count might differ slightly from billable, 
@@ -59,20 +64,18 @@ class GeminiAdapter(LLMInterface):
 
         try:
             # Set generation config from kwargs if needed
-            generation_config = genai.types.GenerationConfig(
-                candidate_count=1,
-                # map common kwargs if needed, e.g. temperature
-                temperature=kwargs.get("temperature", 0.7) 
-            )
-
-            response = self.model.generate_content(
-                full_content, 
-                generation_config=generation_config
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=full_content,
+                config=types.GenerateContentConfig(
+                    candidate_count=1,
+                    temperature=kwargs.get("temperature", 0.7)
+                )
             )
             
             # Response validation
-            if not response.parts:
-                logger.warning("Gemini returned no parts.")
+            if not response.candidates:
+                logger.warning("Gemini returned no candidates.")
                 return ""
 
             # text extraction
