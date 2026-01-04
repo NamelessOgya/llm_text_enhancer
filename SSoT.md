@@ -129,3 +129,6 @@
   - `.env` に `GEMINI_API_KEY` が存在する場合のみ実行される。
   - テスト実行時にInput PromptとOutput Responseを標準出力に表示し、実際の挙動を目視確認可能にする。
 - **実行**: `python -m unittest tests/test_gemini_integration.py`
+
+## 7. コーディング規約
+- **コメント**: コード内のコメントは必ず日本語で書くこと。

@@ -6,14 +6,17 @@ from .gemini_adapter import GeminiAdapter
 
 def get_llm_adapter(adapter_type: str, model_name: str) -> LLMInterface:
     """
-    Factory function to get the appropriate LLM adapter based on the adapter type.
+    指定されたアダプタータイプに基づいて、適切なLLMアダプターインスタンスを生成して返すFactory関数。
     
     Args:
-        adapter_type: The type of adapter (e.g., 'openai', 'gemini', 'dummy').
-        model_name: The name of the model to be passed to the adapter.
+        adapter_type (str): アダプターの種類識別子 ('openai', 'gemini', 'dummy')
+        model_name (str): インスタンス化するモデル名 (各アダプターのコンストラクタに渡される)
         
     Returns:
-        An instance of LLMInterface.
+        LLMInterface: 初期化されたLLMアダプターインスタンス
+        
+    Raises:
+        ValueError: サポートされていない adapter_type が指定された場合に発生する
     """
     if adapter_type == "dummy":
         return DummyAdapter()

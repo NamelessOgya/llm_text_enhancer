@@ -4,8 +4,12 @@ from .interface import LLMInterface
 
 class DummyAdapter(LLMInterface):
     """
-    A dummy adapter for testing purposes.
-    Returns random Pokemon names for generation and random scores for evaluation.
+    テスト用のダミーアダプタークラス。
+    LLM APIを呼び出さずに、ランダムなポケモン名やスコアを返すことで、
+    パイプラインの動作確認やデバッグを低コストで行うために使用する。
+    
+    APIコールが発生しないため、ネットワーク遮断環境でのテストや、
+    ロジック部分の単体テストにおけるモックとしても機能する。
     """
     def __init__(self):
         self.pokemon_names = [
@@ -13,6 +17,7 @@ class DummyAdapter(LLMInterface):
             "Snorlax", "Gengar", "Jigglypuff", "Meowth", "Psyduck",
             "Magikarp", "Gyarados", "Lapras", "Ditto", "Mewtwo"
         ]
+        # ダミーのトークン使用量 (固定値)
         self.token_usage = {
             "prompt_tokens": 10,
             "completion_tokens": 5,
@@ -20,26 +25,39 @@ class DummyAdapter(LLMInterface):
         }
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None, **kwargs) -> str:
-        # Check if it looks like an evaluation prompt (asking for a score)
+        """
+        プロンプトの内容に応じて、それらしいダミーレスポンスを返す。
+        
+        Args:
+            prompt (str): 入力プロンプト
+            system_prompt (Optional[str]): システムプロンプト (無視される)
+            **kwargs: その他 (無視される)
+            
+        Returns:
+            str: ダミー生成テキスト
+                 - スコア要求("Score from 0 to 10")が含まれる場合: ランダムな数字
+                 - Mutation要求("Rewrite")が含まれる場合: "Mutated <Pokemon>"
+                 - 初期生成("Generate X prompts")の場合: X行のテキスト
+                 - その他: ランダムなポケモン名を含む文
+        """
+        # 評価プロンプトの場合 (スコア要求を検知)
         if "Provide a score from 0 to 10" in prompt:
             return str(random.randint(0, 10))
         
-        # Check if it looks like a mutation prompt
+        # 変異プロンプトの場合 (Mutation)
         if "Rewrite it to be even more effective" in prompt:
-             # Just return another random pokemon with a prefix to indicate mutation
              return f"Mutated {random.choice(self.pokemon_names)}"
 
-        # Default generation (Task Definition prompt)
-        # Check if it asks for multiple prompts (initialization)
+        # デフォルト生成 (初期生成時など)
+        # 複数行の出力を要求されているか簡易判定
         if "Generate" in prompt and "prompts" in prompt:
-            # Need to return K lines
-            # Rough heuristic to find K
+            # 正規表現で要求数Kを取得
             import re
             match = re.search(r'Generate (\d+) distinct prompts', prompt)
             k = int(match.group(1)) if match else 3
             return "\n".join([f"Generate text for {random.choice(self.pokemon_names)}" for _ in range(k)])
 
-        # Single generation
+        # 単一生成
         return f"This is a {random.choice(self.pokemon_names)}."
 
     def get_token_usage(self) -> Dict[str, int]:
