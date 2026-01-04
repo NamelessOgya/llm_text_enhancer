@@ -84,5 +84,9 @@ class TestIntegrationFlow(unittest.TestCase):
         log_file = os.path.join(self.result_dir, self.experiment_id, "logs", "execution.log")
         self.assertTrue(os.path.exists(log_file))
 
+        # Check creation prompts in logic directory
+        self.assertTrue(len(glob.glob(os.path.join(iter0_dir, "logic", "creation_prompt_*.txt"))) > 0)
+        self.assertTrue(len(glob.glob(os.path.join(iter1_dir, "logic", "creation_prompt_*.txt"))) > 0)
+
 if __name__ == '__main__':
     unittest.main()

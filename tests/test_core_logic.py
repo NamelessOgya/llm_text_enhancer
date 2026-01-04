@@ -19,9 +19,14 @@ class TestCoreLogic(unittest.TestCase):
         k = 5
         prompts = generate_initial_prompts(self.llm, k, self.task_def)
         self.assertEqual(len(prompts), k)
-        for p in prompts:
+        for p_data in prompts:
+            self.assertIsInstance(p_data, tuple)
+            self.assertEqual(len(p_data), 2)
+            p, meta_p = p_data
             self.assertIsInstance(p, str)
             self.assertTrue(len(p) > 0)
+            self.assertIsInstance(meta_p, str)
+            self.assertTrue(len(meta_p) > 0)
 
     def test_evolve_prompts(self):
         k = 5
@@ -36,11 +41,13 @@ class TestCoreLogic(unittest.TestCase):
         
         self.assertEqual(len(new_prompts), k)
         # Elitism check: Top 20% of 5 is 1. So best prompt "Prompt 4" should be preserved.
-        self.assertIn("Prompt 4", new_prompts[0]) 
+        # new_prompts[0] is (prompt, meta)
+        self.assertIn("Prompt 4", new_prompts[0][0])
+        self.assertIn("Elitism", new_prompts[0][1])
         
         # Mutation check: Others should be mutated
         # DummyAdapter returns "Mutated ..." for mutation requests
-        mutation_count = sum(1 for p in new_prompts if "Mutated" in p)
+        mutation_count = sum(1 for p, meta in new_prompts if "Mutated" in p)
         self.assertTrue(mutation_count > 0)
 
     def test_llm_evaluator_with_dummy(self):

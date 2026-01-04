@@ -4,13 +4,14 @@
 
 ## 2. システム構成
 ### 2.1. 動作環境
-- **Docker**: コンテナ内で動作。ビルドスクリプトを提供。
+- **Docker**: コンテナ内で動作。ビルドスクリプトを提供 (Python 3.11-slim)。
 - **LLM**: 外部API (OpenAI, Google Gemini等) を利用。
+  - **Gemini**: `google-genai` SDKを使用 (推奨される最新版)。
   - 将来的な差し替えを考慮し、LLM利用部分は抽象化層(Interface/Adapter)を設ける。
 
 ### 2.2. 設定管理と実行パイプライン
 - **設定管理**: 実験設定はCSVファイルで管理する。
-  - CSVには実験ID、最大世代数、個体数 `k`、モデル名、`adapter_type`、`task_definition`、`target_preference` 等を定義。
+  - CSVには実験ID、最大世代数、個体数 `k`、モデル名(`gemini-2.0-flash-lite`等)、`adapter_type`、`task_definition`、`target_preference` 等を定義。
   - **Adapter Type**: 使用するLLMアダプターの種類を指定（例: `openai`, `gemini`, `dummy`）。これによりモデル名のみに依存しない明確な切り替えが可能。
   - **Task Definition (ドメイン定義)**: 生成タスクの一般的な指示（例: "実在するポケモンの説明を生成せよ"）。Generatorにはこれのみが与えられる。
   - **Target Preference (隠された嗜好)**: 評価の正解基準（例: "炎タイプのポケモン"）。Generatorには**一切公開されない**。Evaluatorのみが使用する。
@@ -53,8 +54,11 @@
         │   ├── execution.log
         │   └── token_usage.json
         └── iter[N]/    # 第N世代
-            ├── input_prompts/  # テキスト生成に使用したプロンプト(Input)
-            │   ├── input_prompt1
+            ├── input_prompts/  # テスト生成に使用したプロンプト(Input)
+            │   ├── prompt_1.txt
+            │   └── ...
+            ├── logic/          # ロジック内で使用された中間出力物 (メタプロンプト等)
+            │   ├── creation_prompt_1.txt
             │   └── ...
             ├── texts/          # 生成されたテキスト(Output)
             │   ├── text1
@@ -76,12 +80,15 @@
 - **出力**:
   - `result/[setting]/iter[n+1]/texts/` (生成テキスト)
   - `result/[setting]/iter[n+1]/input_prompts/` (生成プロンプト)
+  - `result/[setting]/iter[n+1]/logic/` (ロジック内で生成された中間出力物)
 
 ### 3.2. 評価 (`cmd/evaluate_step.sh`)
 - **入力**: 第`n+1`世代テキスト
 - **処理**: `target_preference` を正解として使用し、テキストとの適合度をスコアリング。
 - **出力**: `result/[setting]/iter[n+1]/metrics.json`
-- **Metricsスキーマ**: 各プロンプトサンプルに対応したスコアのみを単純にリスト等の形式で保持する。
+- **Metricsスキーマ**: 各プロンプトサンプルに対応したスコアと**評価理由(reason)**をリスト形式で保持する。
+  - `{"file": "...", "score": 8.0, "reason": "..."}`のように出力される。
+  - ルールベース評価の場合、reasonは空文字となる。
 
 ### 3.3. ルールベース評価器の追加手順
 新しいルールベース評価器を追加する場合は、以下の手順に従う。
