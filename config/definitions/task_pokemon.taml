@@ -1,0 +1,8 @@
+[background]
+Initial task definition for generating Pokemon descriptions.
+Added on 2026-01-04.
+
+[content]
+Generate a description or name of a single real Pokemon species.
+NEVER generate a Pokemon that does not exist.
+MUST generate name of Pokemon only. Never generate description of Pokemon.

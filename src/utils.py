@@ -53,3 +53,81 @@ def save_token_usage(token_usage: Dict[str, int], file_path: str):
 
     with open(file_path, 'w') as f:
         json.dump(current_usage, f, indent=4)
+
+def load_taml(file_path: str) -> str:
+    """
+    TAML (Task/Target Augmented Markup Language) ファイルを読み込み、[content]セクションの内容を返す。
+    TAMLは以下の形式を想定する:
+    
+    [background]
+    (変更履歴やコンテキストなど)
+    
+    [content]
+    (実際のプロンプト定義やターゲット定義)
+    
+    Args:
+        file_path (str): .tamlファイルのパス
+        
+    Returns:
+        str: [content]セクションのテキスト。セクションが見つからない場合はファイル全体を返すか、エラーログを出力する。
+    """
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"TAML file not found: {file_path}")
+        
+    with open(file_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+        
+    content_lines = []
+    in_content = False
+    
+    for line in lines:
+        stripped = line.strip()
+        if stripped == "[content]":
+            in_content = True
+            continue
+        elif stripped.startswith("[") and stripped.endswith("]"):
+            in_content = False
+            continue
+            
+        if in_content:
+            content_lines.append(line)
+            
+    # [content]セクションが見つからなかった場合、ファイル全体を返すフォールバックを行うか、
+    # あるいは空文字を返すか。ここでは利便性のため、もし[content]タグが全くなければ
+    # ファイル全体をcontentとして扱う (後方互換性あるいは簡易記述用)。
+    if not content_lines:
+        # [content]タグ自体が存在したか確認
+        has_content_tag = any(l.strip() == "[content]" for l in lines)
+        if has_content_tag:
+            return "" # タグはあるが中身がない
+        else:
+            return "".join(lines).strip() # タグがないので全体を返す
+            
+    return "".join(content_lines).strip()
+
+def load_content(input_value: str) -> str:
+    """
+    入力がファイルパス(.tamlなど)であればその内容を読み込み、
+    そうでなければそのまま文字列として返す。
+    
+    Args:
+        input_value (str): ファイルパス または 直接のテキスト内容
+        
+    Returns:
+        str: 解決されたコンテンツテキスト
+    """
+    # 入力が .taml ファイルパスと思われる場合
+    if input_value.strip().endswith(".taml") and os.path.exists(input_value):
+        return load_taml(input_value)
+    
+    # 通常のテキストファイルの場合もサポート (汎用性)
+    if os.path.exists(input_value) and os.path.isfile(input_value):
+        try:
+            with open(input_value, 'r', encoding='utf-8') as f:
+                return f.read().strip()
+        except Exception:
+            # パスっぽいが読めない、あるいは長すぎてパス制限に引っかかる文字列など
+            pass
+            
+    # ファイルでない、または見つからない場合は生のテキストとして扱う
+    return input_value

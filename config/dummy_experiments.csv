@@ -1,3 +1,3 @@
-experiment_id,max_generations,population_size,model_name,evaluator_type,task_definition,target_preference
-dummy_keyword,1,3,dummy,rule_keyword,Generate Pokemon,Fire Type
-dummy_regex,1,3,dummy,rule_regex,Generate Pokemon,Pikachu
+experiment_id,max_generations,population_size,model_name,adapter_type,evaluator_type,task_definition,target_preference
+dummy_keyword,1,3,dummy,dummy,rule_keyword,config/definitions/task_dummy.taml,config/definitions/target_dummy_fire.taml
+dummy_regex,1,3,dummy,dummy,rule_regex,config/definitions/task_dummy.taml,config/definitions/target_dummy_pikachu.taml

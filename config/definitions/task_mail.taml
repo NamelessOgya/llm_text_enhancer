@@ -1,0 +1,9 @@
+[background]
+Task for generating click-inducing mail subjects.
+Added for testing urgnecy-based generation.
+
+[content]
+ユーザーがクリックしたくなるメールマガジンのタイトルをただ一つだけ生成してください。
+以下に注意してください。  
+  
+- タイトル以外を出力しないようにしてください。  

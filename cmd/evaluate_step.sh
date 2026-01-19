@@ -9,13 +9,14 @@ MODEL_NAME=$3
 ADAPTER_TYPE=$4
 EVALUATOR_TYPE=$5
 TARGET_PREFERENCE=$6
+EVOLUTION_METHOD=${7:-ga}
 
 # Get absolute path to project root
 PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 PYTHONpath="$PROJECT_ROOT/src"
-RESULT_DIR="$PROJECT_ROOT/result/$EXPERIMENT_ID"
+RESULT_DIR="$PROJECT_ROOT/result/$EXPERIMENT_ID/$EVOLUTION_METHOD"
 
-echo "Running Evaluation Step for $EXPERIMENT_ID Iteration $ITERATION (Evaluator: $EVALUATOR_TYPE)"
+echo "Running Evaluation Step for $EXPERIMENT_ID ($EVOLUTION_METHOD) Iteration $ITERATION (Evaluator: $EVALUATOR_TYPE)"
 
 export PYTHONPATH=$PYTHONpath
 python3 "$PROJECT_ROOT/src/evaluate.py" \

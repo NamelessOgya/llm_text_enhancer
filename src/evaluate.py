@@ -58,6 +58,10 @@ def main():
     
     setup_logging(os.path.join(logs_dir, "execution.log"))
     
+    # TAMLファイルの読み込み (target_preferenceがファイルパスの場合は内容を展開)
+    from utils import load_content
+    target_content = load_content(args.target_preference)
+    
     # LLMアダプターの初期化 (Factory Pattern)
     # ルールベース評価の場合でも、トークン計算や将来的な拡張(ハイブリッド評価など)を見越して初期化を行っているが、
     # 完全に不要な場合は最適化の余地がある。
@@ -78,7 +82,7 @@ def main():
     # 生成されたテキストファイルを収集して評価を実行
     # ファイル名順不同による不整合を防ぐため、glob結果は必ずソートする。
     text_files = sorted(glob.glob(os.path.join(texts_dir, "text_*.txt")))
-    metrics = evaluate_texts(evaluator, text_files, args.target_preference)
+    metrics = evaluate_texts(evaluator, text_files, target_content)
     
     # 評価結果の保存 (JSON)
     # 次世代の生成ステップ(evolve_prompts)でこのファイルを読み込む。

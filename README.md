@@ -4,6 +4,16 @@
 
 GeneratorはEvaluatorの「隠された嗜好」をスコアフィードバックのみから学習し、ターゲットに適合したテキストを生成するように進化します。
 
+## サポートされている進化戦略 (Evolution Strategies)
+
+本フレームワークは以下の5つのプロンプト最適化手法をサポートしています。
+
+1. **Genetic Algorithm (GA)** [デフォルト]: エリート保存と変異（言い換え、拡張、短縮、トーン変更）を利用。
+2. **TextGrad**: スコアに基づく「擬似勾配（修正指示）」をLLMに生成させ、プロンプトを修正。
+3. **Trajectory (OPRO)**: 過去のスコア履歴の「改善の軌跡」を分析し、より良いプロンプトを予測。
+4. **Demonstration (DSPy)**: 高スコアの成功事例をFew-Shotとしてプロンプトに埋め込む。
+5. **Ensemble**: 上記の手法を任意の比率で組み合わせて実行 (例: GA 50% + TextGrad 50%)。
+
 ## 必要要件
 
 - Docker (推奨)
@@ -26,13 +36,16 @@ cp .env.example .env
 `config/experiments.csv` を編集して実験パラメータを設定します。
 
 ```csv
-experiment_id,max_generations,population_size,model_name,evaluator_type,task_definition,target_preference
-my_exp,5,5,gpt-4o,llm,Generate a short story.,Horror story
+experiment_id,max_generations,population_size,model_name,evaluator_type,task_definition,target_preference,evolution_method,ensemble_ratios
+my_exp,5,5,gpt-4o,llm,Generate a short story.,Horror story,ga,
+ensemble_exp,5,10,gpt-4o,llm,Title generation,Funny,ensemble,"ga:0.5,textgrad:0.5"
 ```
 
 - `task_definition`: 生成タスクの一般的な指示（Generatorへの入力）。
 - `target_preference`: 評価の正解基準（Evaluatorのみが使用）。
 - `evaluator_type`: `llm`, `rule_keyword`, `rule_regex` から選択。
+- `evolution_method`: `ga`, `textgrad`, `trajectory`, `demonstration`, `ensemble` から選択。
+- `ensemble_ratios`: `ensemble` 選択時のみ有効。`"method:ratio,..."` の形式で指定。
 
 ## 実行方法 (Docker)
 

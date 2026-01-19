@@ -9,15 +9,17 @@ POPULATION_SIZE=$3
 MODEL_NAME=$4
 ADAPTER_TYPE=$5
 TASK_DEFINITION=$6
+EVOLUTION_METHOD=${7:-ga} # Default to ga
+ENSEMBLE_RATIOS=${8:-""}
 
 # Get absolute path to project root
 PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 PYTHONpath="$PROJECT_ROOT/src"
 
-# Define result dir relative to project root
-RESULT_DIR="$PROJECT_ROOT/result/$EXPERIMENT_ID"
+# Define result dir relative to project root (Split by Logic)
+RESULT_DIR="$PROJECT_ROOT/result/$EXPERIMENT_ID/$EVOLUTION_METHOD"
 
-echo "Running Generation Step for $EXPERIMENT_ID Iteration $ITERATION"
+echo "Running Generation Step for $EXPERIMENT_ID ($EVOLUTION_METHOD) Iteration $ITERATION"
 
 export PYTHONPATH=$PYTHONpath
 python3 "$PROJECT_ROOT/src/generate.py" \
@@ -27,4 +29,6 @@ python3 "$PROJECT_ROOT/src/generate.py" \
     --model-name "$MODEL_NAME" \
     --adapter-type "$ADAPTER_TYPE" \
     --task-definition "$TASK_DEFINITION" \
-    --result-dir "$RESULT_DIR"
+    --result-dir "$RESULT_DIR" \
+    --evolution-method "$EVOLUTION_METHOD" \
+    --ensemble-ratios "$ENSEMBLE_RATIOS"

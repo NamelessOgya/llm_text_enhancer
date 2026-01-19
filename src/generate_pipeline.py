@@ -42,27 +42,30 @@ def main():
             task_def = exp['task_definition']
             target = exp['target_preference']
             
-            f.write(f"# Experiment: {exp_id}\n")
-            f.write(f"echo \"Starting Experiment: {exp_id}\"\n")
+            # 下位互換性維持 & 新機能対応
+            evolution_method = exp.get('evolution_method', 'ga')
+            ensemble_ratios = exp.get('ensemble_ratios', '')
+            
+            f.write(f"# Experiment: {exp_id} ({evolution_method})\n")
+            f.write(f"echo \"Starting Experiment: {exp_id} with {evolution_method}\"\n")
             
             # 各世代(iteration)ごとの実行コマンドを生成
             for i in range(max_gen):
-                iter_dir = os.path.join(project_root, "result", exp_id, f"iter{i}")
+                # フォルダ構成を result/exp_id/method/iterN に変更
+                iter_dir = os.path.join(project_root, "result", exp_id, evolution_method, f"iter{i}")
                 metrics_file = os.path.join(iter_dir, "metrics.json")
                 
-                # 冪等性(Idempotency)の確保: 
-                # 既に評価結果(metrics.json)が存在する場合、その世代の計算は完了しているとみなし、
-                # 再計算を行わずにスキップする。これにより、中断した実験の再開が容易になる。
+                # 冪等性(Idempotency)の確保
                 f.write(f"if [ ! -f \"{metrics_file}\" ]; then\n")
                 f.write(f"    echo \"Running Iteration {i}\"\n")
                 
                 # 生成ステップ (Generation Phase)
-                # 次世代のプロンプトとテキストを生成するスクリプトを呼び出す
-                f.write(f"    ./cmd/generate_next_step.sh \"{exp_id}\" \"{i}\" \"{pop_size}\" \"{model}\" \"{adapter_type}\" \"{task_def}\"\n")
+                # 引数を追加: evolution_method, ensemble_ratios
+                f.write(f"    ./cmd/generate_next_step.sh \"{exp_id}\" \"{i}\" \"{pop_size}\" \"{model}\" \"{adapter_type}\" \"{task_def}\" \"{evolution_method}\" \"{ensemble_ratios}\"\n")
                 
                 # 評価ステップ (Evaluation Phase)
-                # 生成されたテキストを評価し、スコアを算出するスクリプトを呼び出す
-                f.write(f"    ./cmd/evaluate_step.sh \"{exp_id}\" \"{i}\" \"{model}\" \"{adapter_type}\" \"{evaluator}\" \"{target}\"\n")
+                # パス解決のために evolution_method を渡す
+                f.write(f"    ./cmd/evaluate_step.sh \"{exp_id}\" \"{i}\" \"{model}\" \"{adapter_type}\" \"{evaluator}\" \"{target}\" \"{evolution_method}\"\n")
                 
                 f.write("else\n")
                 f.write(f"    echo \"Skipping Iteration {i} (already completed)\"\n")
