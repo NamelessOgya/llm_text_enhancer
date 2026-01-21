@@ -1,0 +1,11 @@
+[background]
+Task for summarizing reddit posts (TL;DR).
+
+[content]
+以下のテキストを要約してください。
+{{ content }}
+
+[ref]
+dataset: data/dummy_tldr.csv
+column: content
+target_column: summary

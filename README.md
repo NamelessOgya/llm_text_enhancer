@@ -47,6 +47,26 @@ ensemble_exp,5,10,gpt-4o,llm,Title generation,Funny,ensemble,"ga:0.5,textgrad:0.
 - `evolution_method`: `ga`, `textgrad`, `trajectory`, `demonstration`, `ensemble` から選択。
 - `ensemble_ratios`: `ensemble` 選択時のみ有効。`"method:ratio,..."` の形式で指定。
 
+### 3. データセットを用いた実験 (Dataset Experiment)
+
+CSVなどの外部データセットを用いた実験も可能です。
+
+1. **データセットの用意**: `data/` 配下にCSVファイルを配置します (例: `data/dummy_tldr.csv`)。
+2. **タスク定義**: `.taml` ファイルの `[ref]` セクションでデータセットとカラムを指定します。
+
+```taml
+[content]
+以下のテキストを要約してください。
+{{ content }}
+
+[ref]
+dataset: data/dummy_tldr.csv
+column: content
+target_column: summary
+```
+
+3. **実行**: 通常通りパイプラインを実行すると、各行ごとにディレクトリ (`result/exp_id/ga/row_N/iterM`) が作成され、個別に最適化が行われます。
+
 ## 実行方法 (Docker)
 
 ### 1. イメージのビルド

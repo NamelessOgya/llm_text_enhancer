@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-from typing import Dict
+from typing import Dict, List
 
 def setup_logging(log_file_path: str):
     """
@@ -131,3 +131,60 @@ def load_content(input_value: str) -> str:
             
     # ファイルでない、または見つからない場合は生のテキストとして扱う
     return input_value
+
+def load_dataset(file_path: str) -> List[Dict[str, str]]:
+    """
+    CSVまたはJSONLファイルをロードし、辞書のリストとして返す。
+    Args:
+        file_path (str): ファイルパス
+    Returns:
+        List[Dict[str, str]]: 行データのリスト
+    """
+    data = []
+    if file_path.endswith('.csv'):
+        import csv
+        with open(file_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            data = list(reader)
+    elif file_path.endswith('.jsonl'):
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip():
+                    data.append(json.loads(line))
+    else:
+        # 簡易的にCSVとしてトライ
+        import csv
+        with open(file_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            data = list(reader)
+    return data
+
+def parse_taml_ref(file_path: str) -> Dict[str, str]:
+    """
+    TAMLファイルの [ref] セクションをパースする。
+    Returns:
+        Dict: キーバリューペア (dataset, column, target_column 等)
+    """
+    if not os.path.exists(file_path):
+        return {}
+        
+    with open(file_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+        
+    ref_data = {}
+    in_ref = False
+    
+    for line in lines:
+        stripped = line.strip()
+        if stripped == "[ref]":
+            in_ref = True
+            continue
+        elif stripped.startswith("[") and stripped.endswith("]"):
+            in_ref = False
+            continue
+            
+        if in_ref and ":" in stripped:
+            key, val = stripped.split(":", 1)
+            ref_data[key.strip()] = val.strip()
+            
+    return ref_data

@@ -20,9 +20,10 @@ echo "Running Evaluation Step for $EXPERIMENT_ID ($EVOLUTION_METHOD) Iteration $
 
 export PYTHONPATH=$PYTHONpath
 python3 "$PROJECT_ROOT/src/evaluate.py" \
+    --experiment-id "$EXPERIMENT_ID" \
     --iteration "$ITERATION" \
     --model-name "$MODEL_NAME" \
     --adapter-type "$ADAPTER_TYPE" \
     --evaluator-type "$EVALUATOR_TYPE" \
     --target-preference "$TARGET_PREFERENCE" \
-    --result-dir "$RESULT_DIR"
+    --evolution-method "$EVOLUTION_METHOD"

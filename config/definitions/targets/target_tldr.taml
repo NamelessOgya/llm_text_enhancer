@@ -1,0 +1,10 @@
+[background]
+Target preference for TL;DR summary.
+
+[content]
+要約が正確で、かつ元の文章のニュアンスを維持していること。
+{{ summary }}
+
+[ref]
+dataset: data/dummy_tldr.csv
+target: summary

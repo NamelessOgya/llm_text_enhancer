@@ -5,7 +5,7 @@ import glob
 import logging
 from typing import List, Dict, Tuple
 
-from utils import setup_logging, save_token_usage
+from utils import setup_logging, save_token_usage, load_content, parse_taml_ref, load_dataset
 from llm.interface import LLMInterface
 from evolution_strategies import get_evolution_strategy
 
@@ -15,6 +15,8 @@ def load_metrics(metrics_path: str) -> List[Dict]:
     """
     評価指標(metrics.json)を読み込む。
     """
+    if not os.path.exists(metrics_path):
+        return []
     with open(metrics_path, 'r') as f:
         return json.load(f)
 
@@ -95,107 +97,135 @@ def main():
     parser.add_argument("--model-name", default="gpt-4o", help="モデル名")
     parser.add_argument("--adapter-type", required=True, help="アダプター種別")
     parser.add_argument("--task-definition", required=True, help="タスク定義ファイル")
-    parser.add_argument("--result-dir", required=True, help="結果出力ディレクトリ")
+    parser.add_argument("--result-dir", required=True, help="結果出力ディレクトリ (親ディレクトリ: result/exp/method)")
     parser.add_argument("--evolution-method", default="ga", help="進化手法")
     parser.add_argument("--ensemble-ratios", help="アンサンブル比率")
     args = parser.parse_args()
 
-    current_iter_dir = os.path.join(args.result_dir, f"iter{args.iteration}")
-    # input_prompts は "生成ロジック(Meta-Prompt)" を保存する場所として再定義する
-    prompts_dir = os.path.join(current_iter_dir, "input_prompts")
-    # logic ディレクトリも念のため維持 (同じ内容になるかもしれないが構造維持のため)
-    logic_dir = os.path.join(current_iter_dir, "logic")
-    texts_dir = os.path.join(current_iter_dir, "texts")
-    logs_dir = os.path.join(args.result_dir, "logs")
-    
-    os.makedirs(prompts_dir, exist_ok=True)
-    os.makedirs(logic_dir, exist_ok=True)
-    os.makedirs(texts_dir, exist_ok=True)
-    
-    setup_logging(os.path.join(logs_dir, "execution.log"))
-    
-    from utils import load_content
-    task_def_content = load_content(args.task_definition)
-    
+    # タスク定義のロードとデータセット参照解析
     from llm.factory import get_llm_adapter
     llm = get_llm_adapter(args.adapter_type, args.model_name)
     
-    # --- 生成/進化フェーズ ---
-    generated_outputs = [] # List[Tuple[text, logic]]
-
-    if args.iteration == 0:
-        # 初期生成: タスク定義から直接テキストを生成
-        generated_outputs = generate_initial_texts(llm, args.population_size, task_def_content)
+    # Task Definition Contentの読み込み (テンプレートの可能性あり)
+    raw_task_def_content = load_content(args.task_definition)
+    
+    # [ref] セクションの解析 (データセットを使用するか判定)
+    ref_info = parse_taml_ref(args.task_definition)
+    dataset = []
+    
+    if "dataset" in ref_info:
+        dataset_path = ref_info["dataset"]
+        if not os.path.isabs(dataset_path):
+            # プロジェクトルートからの相対パスとして解決を試みる
+            # このスクリプトは src/generate.py なので、実行ディレクトリ(プロジェクトルート)を基準とする
+            dataset_path = os.path.abspath(dataset_path)
+            
+        logger.info(f"Loading dataset from {dataset_path}")
+        dataset = load_dataset(dataset_path)
     else:
-        # 進化: 前世代のテキストを変異/改善
-        prev_iter_dir = os.path.join(args.result_dir, f"iter{args.iteration-1}")
-        metrics_path = os.path.join(prev_iter_dir, "metrics.json")
+        # データセットを使わない従来モード (単一の row_0 として扱う)
+        dataset = [{"_dummy": "dummy"}]
         
-        metrics = load_metrics(metrics_path)
-        population = []
+    logger.info(f"Processing {len(dataset)} items/rows.")
+
+    for row_idx, row_data in enumerate(dataset):
+        # テンプレート変数の置換
+        current_task_def = raw_task_def_content
+        for key, val in row_data.items():
+            current_task_def = current_task_def.replace(f"{{{{ {key} }}}}", str(val))
+            current_task_def = current_task_def.replace(f"{{{{{key}}}}}", str(val))
+
+        # ディレクトリ構造: [result_dir]/row_[idx]/iter[N]
+        row_dir_name = f"row_{row_idx}"
+        current_iter_dir = os.path.join(args.result_dir, row_dir_name, f"iter{args.iteration}")
         
-        for m in metrics:
-            try:
-                file_name = m["file"]
-                # テキスト読み込み
-                text_path = os.path.join(prev_iter_dir, "texts", file_name)
-                if not os.path.exists(text_path):
-                    continue
-                with open(text_path, 'r') as f:
-                    t_text = f.read().strip()
-                    
-                # プロンプト(ロジック)読み込み - 必須ではないが文脈としてあれば
-                # ここでの "prompt" は以前の「生成指示」ではなく、前回の「変異指示」などのメタ情報
-                # 互換性のため "prompt" キーにはテキストを入れておくか、空にしておく
-                # TextGradなどで「元の指示」が必要な場合があるが、Text Optimizationでは「元のテキスト」が重要。
+        prompts_dir = os.path.join(current_iter_dir, "input_prompts")
+        logic_dir = os.path.join(current_iter_dir, "logic")
+        texts_dir = os.path.join(current_iter_dir, "texts")
+        logs_dir = os.path.join(args.result_dir, row_dir_name, "logs")
+        
+        os.makedirs(prompts_dir, exist_ok=True)
+        os.makedirs(logic_dir, exist_ok=True)
+        os.makedirs(texts_dir, exist_ok=True)
+        # logsはiterごとに分けないのが通例だが、rowごとに分ける
+        os.makedirs(logs_dir, exist_ok=True) 
+
+        setup_logging(os.path.join(logs_dir, "execution.log"))
+        
+        # --- 生成/進化フェーズ ---
+        generated_outputs = [] # List[Tuple[text, logic]]
+
+        if args.iteration == 0:
+            # 初期生成: タスク定義から直接テキストを生成
+            generated_outputs = generate_initial_texts(llm, args.population_size, current_task_def)
+        else:
+            # 進化: 前世代のテキストを変異/改善
+            # 前イテレーションのディレクトリ: [result_dir]/row_[idx]/iter[N-1]
+            prev_iter_dir = os.path.join(args.result_dir, row_dir_name, f"iter{args.iteration-1}")
+            metrics_path = os.path.join(prev_iter_dir, "metrics.json")
+            
+            metrics = load_metrics(metrics_path)
+            population = []
+            
+            for m in metrics:
+                try:
+                    file_name = m["file"]
+                    # テキスト読み込み
+                    text_path = os.path.join(prev_iter_dir, "texts", file_name)
+                    if not os.path.exists(text_path):
+                        continue
+                    with open(text_path, 'r') as f:
+                        t_text = f.read().strip()
+                        
+                    population.append({
+                        "text": t_text,
+                        "score": m["score"],
+                        "reason": m.get("reason", ""),
+                        "file": file_name,
+                        "prompt": "N/A"
+                    })
+                except Exception as e:
+                    logger.warning(f"Skipping metric {m}: {e}")
+            
+            if not population:
+                logger.warning(f"No valid population found in {prev_iter_dir}. Using initial generation fallback.")
+                generated_outputs = generate_initial_texts(llm, args.population_size, current_task_def)
+            else:
+                strategy = get_evolution_strategy(args.evolution_method)
+                context = {
+                    "result_dir": os.path.join(args.result_dir, row_dir_name), # Strategy内で過去履歴を読むためrowディレクトリを渡す
+                    "iteration": args.iteration
+                }
+                if args.evolution_method == "ensemble" and args.ensemble_ratios:
+                     # アンサンブル比率のパース (簡易実装)
+                     try:
+                        ratios = {}
+                        for item in args.ensemble_ratios.split(','):
+                            key, val = item.split(':')
+                            ratios[key.strip()] = float(val)
+                        context["ensemble_ratios"] = ratios
+                     except: pass
+        
+                generated_outputs = strategy.evolve(llm, population, args.population_size, current_task_def, context)
+
+        # --- 保存フェーズ ---
+        for i, (text, logic) in enumerate(generated_outputs):
+            # 1. Logic (Meta-Prompt) を input_prompts に保存
+            prompt_file = os.path.join(prompts_dir, f"prompt_{i}.txt")
+            with open(prompt_file, 'w') as f:
+                f.write(logic)
                 
-                population.append({
-                    "text": t_text,
-                    "score": m["score"],
-                    "reason": m.get("reason", ""),
-                    "file": file_name,
-                    "prompt": "N/A" # Prompt optimizationではないのでダミー
-                })
-            except Exception as e:
-                logger.warning(f"Skipping metric {m}: {e}")
-        
-        strategy = get_evolution_strategy(args.evolution_method)
-        context = {
-            "result_dir": args.result_dir,
-            "iteration": args.iteration
-        }
-        if args.evolution_method == "ensemble" and args.ensemble_ratios:
-             # アンサンブル比率のパース (簡易実装)
-             try:
-                ratios = {}
-                for item in args.ensemble_ratios.split(','):
-                    key, val = item.split(':')
-                    ratios[key.strip()] = float(val)
-                context["ensemble_ratios"] = ratios
-             except: pass
+            # 2. 生成テキストを texts に保存
+            text_file = os.path.join(texts_dir, f"text_{i}.txt")
+            with open(text_file, 'w') as f:
+                f.write(text)
+                
+            # 3. creation_prompt も一応保存
+            creation_file = os.path.join(logic_dir, f"creation_prompt_{i}.txt")
+            with open(creation_file, 'w') as f:
+                f.write(logic)
 
-        generated_outputs = strategy.evolve(llm, population, args.population_size, task_def_content, context)
-
-    # --- 保存フェーズ ---
-    # ここでは "Inference" ステップは不要。generated_outputs に既にテキストが入っている。
-    for i, (text, logic) in enumerate(generated_outputs):
-        # 1. Logic (Meta-Prompt) を input_prompts に保存 (トレーサビリティ)
-        # これが「このテキストを生み出した指示書」となる
-        prompt_file = os.path.join(prompts_dir, f"prompt_{i}.txt")
-        with open(prompt_file, 'w') as f:
-            f.write(logic)
-            
-        # 2. 生成テキストを texts に保存
-        text_file = os.path.join(texts_dir, f"text_{i}.txt")
-        with open(text_file, 'w') as f:
-            f.write(text)
-            
-        # 3. creation_prompt も一応保存 (input_promptsと同じ内容だが)
-        creation_file = os.path.join(logic_dir, f"creation_prompt_{i}.txt")
-        with open(creation_file, 'w') as f:
-            f.write(logic)
-
-    save_token_usage(llm.get_token_usage(), os.path.join(logs_dir, "token_usage.json"))
+        save_token_usage(llm.get_token_usage(), os.path.join(logs_dir, "token_usage.json"))
 
 if __name__ == "__main__":
     main()

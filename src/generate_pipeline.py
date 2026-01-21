@@ -52,11 +52,19 @@ def main():
             # 各世代(iteration)ごとの実行コマンドを生成
             for i in range(max_gen):
                 # フォルダ構成を result/exp_id/method/iterN に変更
-                iter_dir = os.path.join(project_root, "result", exp_id, evolution_method, f"iter{i}")
-                metrics_file = os.path.join(iter_dir, "metrics.json")
+                # フォルダ構成を result/exp_id/method/iterN から result/exp_id/method/row_*/iterN に変更
+                # スキップ判定: row_0/iterN/metrics.json があれば完了とみなす (簡易チェック)
+                # 本来は全rowを確認すべきだが、パイプライン生成時点ではrow数はデータセット依存で不明なため、
+                # 少なくとも row_0 (データセットなしの場合も含む) が完了しているかで判断する。
+                
+                # generate.py がデフォルトで作成するディレクトリ構造に合わせる
+                # 既存: result/exp/method/iterN -> 新規: result/exp/method/row_0/iterN
+                base_iter_dir = os.path.join(project_root, "result", exp_id, evolution_method)
+                check_file = os.path.join(base_iter_dir, f"row_0/iter{i}/metrics.json")
                 
                 # 冪等性(Idempotency)の確保
-                f.write(f"if [ ! -f \"{metrics_file}\" ]; then\n")
+                # row_0 の metrics.json があればスキップ (bash glob展開は複雑になるので固定パスで簡易判定)
+                f.write(f"if [ ! -f \"{check_file}\" ]; then\n")
                 f.write(f"    echo \"Running Iteration {i}\"\n")
                 
                 # 生成ステップ (Generation Phase)

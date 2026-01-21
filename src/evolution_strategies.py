@@ -128,6 +128,8 @@ Evaluator Logic/Reasoning: {reason}
 
 Goal: Critique the Current Text strictly. Identify specific weaknesses that prevent it from achieving a higher score.
 Provide a clear, actionable "Gradient" (instruction) on how to modify the text to improve it.
+
+Note: The score is on a scale of 0.0 to 1.0.
 """
             gradient = llm.generate(gradient_prompt).strip()
             
@@ -226,6 +228,8 @@ Your goal is to identify the pattern of improvement and generate the NEXT, SUPER
 
 Optimization Trajectory:
 {trajectory_text}
+
+Note: The score is on a scale of 0.0 to 1.0.
 
 Directive:
 Analyze the improvements made in the trajectory.

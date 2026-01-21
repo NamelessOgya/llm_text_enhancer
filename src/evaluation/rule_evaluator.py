@@ -29,9 +29,9 @@ class KeywordRuleEvaluator(Evaluator):
             return 0.0, ""
             
         matches = target_words.intersection(text_words)
-        score = (len(matches) / len(target_words)) * 10.0
+        score = (len(matches) / len(target_words)) # 0.0 - 1.0
         
-        return min(max(score, 0.0), 10.0), ""
+        return min(max(score, 0.0), 1.0), ""
 
 class RegexRuleEvaluator(Evaluator):
     """
@@ -54,7 +54,7 @@ class RegexRuleEvaluator(Evaluator):
             
         try:
             if re.search(target, text, re.IGNORECASE):
-                return 10.0, ""
+                return 1.0, ""
         except re.error:
             pass # 正規表現エラー時はマッチしなかったものとして扱う
             
@@ -74,4 +74,42 @@ def get_rule_evaluator(rule_type: str) -> Optional[Evaluator]:
         return KeywordRuleEvaluator()
     elif rule_type == "rule_regex":
         return RegexRuleEvaluator()
+    elif rule_type == "rule_meteor":
+        return MeteorRuleEvaluator()
     return None
+
+class MeteorRuleEvaluator(Evaluator):
+    """
+    METEORスコアに基づく評価器。
+    NLTKを使用して計算し、0.0〜1.0のスコアを返す。
+    """
+    def evaluate(self, text: str, target: str) -> Tuple[float, str]:
+        """
+        Args:
+            text (str): 評価対象テキスト
+            target (str): 正解テキスト (Reference)
+            
+        Returns:
+            Tuple[float, str]: (METEORスコア 0.0-1.0, 理由(空文字))
+        """
+        if not target:
+            return 0.0, ""
+            
+        try:
+            import nltk
+            from nltk.translate.meteor_score import meteor_score
+            
+            # Simple tokenization
+            candidate_tokens = text.split()
+            reference_tokens = target.split()
+            
+            # meteor_score expects list of references (list of list of tokens)
+            score = meteor_score([reference_tokens], candidate_tokens)
+            return score, ""
+            
+        except ImportError:
+            # loggerはここにはないが、0を返してログは呼び出し元に任せるか、printするか
+            # ここではシンプルに0
+            return 0.0, "NLTK ImportError"
+        except Exception as e:
+            return 0.0, f"METEOR Error: {str(e)}"
