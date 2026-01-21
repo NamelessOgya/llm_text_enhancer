@@ -1,4 +1,4 @@
 experiment_id,max_generations,population_size,model_name,adapter_type,evaluator_type,task_definition,target_preference,evolution_method,ensemble_ratios
-pokemon_fire,3,5,gemini-2.0-flash-lite,gemini,llm,config/definitions/task_pokemon.taml,config/definitions/target_pokemon_fire.taml,ga,
-pokemon_water,3,5,gemini-2.0-flash-lite,gemini,llm,config/definitions/task_pokemon.taml,config/definitions/target_pokemon_water.taml,ga,
-mail_emergency,5,10,gemini-2.0-flash-lite,gemini,llm,config/definitions/task_mail.taml,config/definitions/target_mail_emergency.taml,ga,
+pokemon_fire,3,5,gemini-2.0-flash-lite,gemini,llm,config/definitions/tasks/task_pokemon.taml,config/definitions/targets/target_pokemon_fire.taml,ga,
+pokemon_water,3,5,gemini-2.0-flash-lite,gemini,llm,config/definitions/tasks/task_pokemon.taml,config/definitions/targets/target_pokemon_water.taml,ga,
+mail_emergency,5,10,gemini-2.0-flash-lite,gemini,llm,config/definitions/tasks/task_mail.taml,config/definitions/targets/target_mail_emergency.taml,ga,
