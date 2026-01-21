@@ -1,0 +1,6 @@
+datasets:
+  tldr:
+    source: "CarperAI/openai_summarize_tldr"
+    split: "train"
+    sample_size: 10
+    output_path: "data/tldr.csv"

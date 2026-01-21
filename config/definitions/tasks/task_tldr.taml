@@ -6,6 +6,6 @@ Task for summarizing reddit posts (TL;DR).
 {{ content }}
 
 [ref]
-dataset: data/dummy_tldr.csv
+dataset: data/tldr.csv
 column: content
 target_column: summary

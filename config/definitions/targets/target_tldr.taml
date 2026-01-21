@@ -6,5 +6,5 @@ Target preference for TL;DR summary.
 {{ summary }}
 
 [ref]
-dataset: data/dummy_tldr.csv
+dataset: data/tldr.csv
 target: summary

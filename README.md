@@ -67,6 +67,27 @@ target_column: summary
 
 3. **実行**: 通常通りパイプラインを実行すると、各行ごとにディレクトリ (`result/exp_id/ga/row_N/iterM`) が作成され、個別に最適化が行われます。
 
+### 4. データセットの準備 (Data Preparation)
+
+本番用データセット (例: TL;DR) をダウンロード・作成するための専用スクリプトが用意されています。
+
+1. **設定**: `config/data_generation_config.yaml` を編集して、データセットや生成件数を設定します。
+
+```yaml
+datasets:
+  tldr:
+    source: "CarperAI/openai_summarize_tldr"
+    split: "train"
+    sample_size: 100
+    output_path: "data/tldr.csv"
+```
+
+2. **実行**: Dockerコンテナ内でデータ生成スクリプトを実行します。
+
+```bash
+docker run --rm -v $(pwd):/app llm_text_enhancer python src/prepare_tldr_data.py --dataset tldr
+```
+
 ## 実行方法 (Docker)
 
 ### 1. イメージのビルド
@@ -100,6 +121,9 @@ python3 src/generate_pipeline.py
 ```bash
 # 依存関係のインストール
 pip install -r requirements.txt
+
+# データセットの準備 (必要に応じて)
+python3 src/prepare_tldr_data.py --dataset tldr
 
 # パイプライン生成
 python3 src/generate_pipeline.py
