@@ -1,0 +1,13 @@
+---
+type: target
+description: "METEOR score against the user's actual feedback."
+---
+# Evaluation Strategy
+Compare the generated text with the reference reason using METEOR score.
+
+# Target Content
+Reference reason: {{ reason }}
+
+[ref]
+dataset: data/prism_dataset.csv
+target: reason

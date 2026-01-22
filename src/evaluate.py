@@ -79,14 +79,15 @@ def update_row_score_summary(row_dir: str):
         except Exception as e:
             logger.warning(f"Failed to summarize metrics for {iter_name}: {e}")
 
-    # イテレーション番号でソートして保存したい場合（オプション）
-    # JSONのキー順序は保証されないが、リスト化する手もある。
-    # ここでは辞書のまま保存する。
+    # イテレーション番号でソートして保存する
+    # iter0, iter1, ... iter10 と並ぶように、数値部分でソートする
+    sorted_keys = sorted(summary.keys(), key=lambda x: int(x.replace("iter", "")))
+    sorted_summary = {k: summary[k] for k in sorted_keys}
     
     summary_path = os.path.join(row_dir, "score_summary.json")
     try:
         with open(summary_path, 'w') as f:
-            json.dump(summary, f, indent=4)
+            json.dump(sorted_summary, f, indent=4)
         logger.info(f"Updated score summary at {summary_path}")
     except Exception as e:
         logger.error(f"Failed to write score summary: {e}")

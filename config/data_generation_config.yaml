@@ -4,3 +4,17 @@ datasets:
     split: "train"
     sample_size: 5
     output_path: "data/tldr.csv"
+  prism:
+    source: "HannahRoseKirk/prism-alignment"
+    split: "train"
+    sample_size: 5
+    min_length_prompt: 30
+    min_length_reason: 30
+    max_score: 0.3
+    min_score: 0.1
+    output_path: "data/prism_dataset.csv"
+  perspectrum:
+    source: "unkitech/perspectrum"
+    split: "train"
+    sample_size: 10
+    output_path: "data/perspectrum.csv"

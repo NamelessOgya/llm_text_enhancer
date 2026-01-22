@@ -1,0 +1,21 @@
+---
+type: task
+description: "Simulate user feedback based on PRISM dataset profile and context."
+---
+# User Context
+Conversation Context:
+{{ prompt }}
+
+# Model Response to Evaluate
+{{ model_response }}
+
+# Your Task
+You are a user evaluating the above Model Response.
+Please reproduce the textual feedback (reason) you would have given.
+
+
+
+Output the feedback reason only.
+
+[ref]
+dataset: data/prism_dataset.csv

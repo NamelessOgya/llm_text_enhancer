@@ -81,7 +81,8 @@ def main():
     # We want: Mean of Max Scores (across rows), Global Max (across rows), etc.
     grouped = df.groupby(["Task", "Method", "Iteration"]).agg({
         "Max_Score": ["mean", "max", "min", "std"],
-        "Min_Score": ["mean", "min"]
+        "Min_Score": ["mean", "min"],
+        "Mean_Score": ["mean"]
     })
     
     # Flatten columns
@@ -95,7 +96,8 @@ def main():
         "Max_Score_min": "Worst_Max_Score",
         "Max_Score_std": "Std_Max_Score",
         "Min_Score_mean": "Avg_Min_Score",
-        "Min_Score_min": "Global_Min_Score"
+        "Min_Score_min": "Global_Min_Score",
+        "Mean_Score_mean": "Global_Mean_Score"
     })
     
     # Sort

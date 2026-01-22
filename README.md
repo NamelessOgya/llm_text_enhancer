@@ -167,6 +167,7 @@ python3 -m unittest discover tests
 ## ディレクトリ構成
 
 - `src/`: ソースコード
+- `analysis/`: スポット分析用スクリプト/ノートブック
 - `cmd/`: 実行用シェルスクリプト
 - `config/`: 設定ファイル
 - `result/`: 実験結果（テキスト、ログ、メトリクス）

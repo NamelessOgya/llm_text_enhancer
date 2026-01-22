@@ -1,0 +1,15 @@
+---
+type: task
+description: "Generate a perspective (stance and reason) for a given claim."
+---
+# Claim
+{{ content }}
+
+# Instruction
+Based on the above claim, provide a perspective.
+You must always explicitly state your stance as "SUPPORT" or "OPPOSE" at the beginning, followed by the reason.
+
+Format: "SUPPORT: [Reason]" or "OPPOSE: [Reason]"
+
+[ref]
+dataset: data/perspectrum.csv

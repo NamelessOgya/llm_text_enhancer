@@ -43,3 +43,5 @@ PRISMデータセットを用いて、ユーザーの評価理由を生成し、
 conversation, feedback
 "user: Is abortion morally justifiable?¥nmodel:Many believe life begins at conception...", "Too much focus on religious perspectives"
 
+## 実装時の注意  
+redditと同様に、全部のデータを実験するのは無理なので、サンプリングを行ってください。  

@@ -3,6 +3,7 @@ import json
 import argparse
 import glob
 import logging
+import shutil
 from typing import List, Dict, Tuple
 
 from utils import setup_logging, save_token_usage, load_content, parse_taml_ref, load_dataset
@@ -127,6 +128,46 @@ def main():
         dataset = [{"_dummy": "dummy"}]
         
     logger.info(f"Processing {len(dataset)} items/rows.")
+
+    # 入力/設定ファイルの保存 (再現性担保)
+    # result/[task]/[method]/input 配下に保存する
+    if args.iteration == 0:
+        input_save_dir = os.path.join(args.result_dir, "input")
+        os.makedirs(input_save_dir, exist_ok=True)
+        
+        # 1. Task Definition (TAML)
+        if os.path.exists(args.task_definition):
+            try:
+                shutil.copy(args.task_definition, input_save_dir)
+            except Exception as e:
+                logger.warning(f"Failed to copy task definition: {e}")
+                
+        # 2. Referenced Dataset (CSV/JSON)
+        if "dataset" in ref_info:
+            d_path = ref_info["dataset"]
+            if not os.path.isabs(d_path):
+                d_path = os.path.abspath(d_path)
+            
+            if os.path.exists(d_path):
+                try:
+                    shutil.copy(d_path, input_save_dir)
+                except Exception as e:
+                    logger.warning(f"Failed to copy dataset: {e}")
+
+        # 3. Reference Configs
+        # config/data_generation_config.yaml
+        possible_gen_config = os.path.abspath("config/data_generation_config.yaml")
+        if os.path.exists(possible_gen_config):
+             try:
+                shutil.copy(possible_gen_config, input_save_dir)
+             except: pass
+             
+        # config/experiments.csv
+        possible_exp_config = os.path.abspath("config/experiments.csv")
+        if os.path.exists(possible_exp_config):
+             try:
+                shutil.copy(possible_exp_config, input_save_dir)
+             except: pass
 
     for row_idx, row_data in enumerate(dataset):
         # テンプレート変数の置換
