@@ -3,3 +3,6 @@ pokemon_fire,3,5,gemini-2.0-flash-lite,gemini,llm,config/definitions/tasks/task_
 pokemon_water,3,5,gemini-2.0-flash-lite,gemini,llm,config/definitions/tasks/task_pokemon.taml,config/definitions/targets/target_pokemon_water.taml,ga,
 mail_emergency,5,10,gemini-2.0-flash-lite,gemini,llm,config/definitions/tasks/task_mail.taml,config/definitions/targets/target_mail_emergency.taml,ga,
 tldr,3,5,gemini-2.0-flash-lite,gemini,rule_meteor,config/definitions/tasks/task_tldr.taml,config/definitions/targets/target_tldr.taml,ga,
+tldr,3,5,gemini-2.0-flash-lite,gemini,rule_meteor,config/definitions/tasks/task_tldr.taml,config/definitions/targets/target_tldr.taml,textgrad,
+tldr,3,5,gemini-2.0-flash-lite,gemini,rule_meteor,config/definitions/tasks/task_tldr.taml,config/definitions/targets/target_tldr.taml,trajectory,
+tldr,3,5,gemini-2.0-flash-lite,gemini,rule_meteor,config/definitions/tasks/task_tldr.taml,config/definitions/targets/target_tldr.taml,demonstration,

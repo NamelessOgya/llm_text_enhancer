@@ -150,6 +150,12 @@ def main():
         # logsはiterごとに分けないのが通例だが、rowごとに分ける
         os.makedirs(logs_dir, exist_ok=True) 
 
+        # 入力データを保存 (トレーサビリティのため)
+        input_data_path = os.path.join(args.result_dir, row_dir_name, "input_data.json")
+        if not os.path.exists(input_data_path):
+            with open(input_data_path, 'w') as f:
+                json.dump(row_data, f, indent=4)
+
         setup_logging(os.path.join(logs_dir, "execution.log"))
         
         # --- 生成/進化フェーズ ---

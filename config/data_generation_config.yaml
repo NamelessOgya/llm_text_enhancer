@@ -2,5 +2,5 @@ datasets:
   tldr:
     source: "CarperAI/openai_summarize_tldr"
     split: "train"
-    sample_size: 10
+    sample_size: 5
     output_path: "data/tldr.csv"

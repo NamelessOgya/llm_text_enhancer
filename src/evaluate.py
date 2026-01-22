@@ -44,6 +44,53 @@ Output JSON format:
         logger.warning(f"Evaluation parsing failed: {e}. Defaulting to score 0.")
         return {"score": 0.0, "reason": "Failed to parse evaluator response."}
 
+def update_row_score_summary(row_dir: str):
+    """
+    指定されたrowディレクトリ配下の全イテレーションのスコアを集計し、
+    score_summary.json を生成・更新する。
+    """
+    iter_dirs = glob.glob(os.path.join(row_dir, "iter*"))
+    summary = {}
+
+    for i_dir in iter_dirs:
+        iter_name = os.path.basename(i_dir) # "iter0", "iter1"
+        metrics_path = os.path.join(i_dir, "metrics.json")
+        
+        if not os.path.exists(metrics_path):
+            continue
+            
+        try:
+            with open(metrics_path, 'r') as f:
+                metrics = json.load(f)
+            
+            if not metrics:
+                continue
+                
+            scores = [m.get("score", 0.0) for m in metrics]
+            if not scores:
+                continue
+                
+            summary[iter_name] = {
+                "max": max(scores),
+                "min": min(scores),
+                "mean": sum(scores) / len(scores),
+                "count": len(scores)
+            }
+        except Exception as e:
+            logger.warning(f"Failed to summarize metrics for {iter_name}: {e}")
+
+    # イテレーション番号でソートして保存したい場合（オプション）
+    # JSONのキー順序は保証されないが、リスト化する手もある。
+    # ここでは辞書のまま保存する。
+    
+    summary_path = os.path.join(row_dir, "score_summary.json")
+    try:
+        with open(summary_path, 'w') as f:
+            json.dump(summary, f, indent=4)
+        logger.info(f"Updated score summary at {summary_path}")
+    except Exception as e:
+        logger.error(f"Failed to write score summary: {e}")
+
 def main():
     parser = argparse.ArgumentParser(description="評価実行スクリプト")
     parser.add_argument("--experiment-id", required=True)
@@ -177,6 +224,9 @@ def main():
         # 保存
         with open(os.path.join(iter_dir, "metrics.json"), 'w') as f:
             json.dump(metrics, f, indent=4)
+
+        # Rowごとのスコア集計を更新
+        update_row_score_summary(row_dir)
 
 if __name__ == "__main__":
     main()

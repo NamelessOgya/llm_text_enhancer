@@ -42,7 +42,9 @@
         │       ├── texts/          # 生成されたテキスト(Output)
         │       │   ├── text1
         │       │   └── ...
-        │       └── metrics.json # 評価結果
+        │       ├── metrics.json # 評価結果
+        │       └── input_data.json # 生成の元となった入力データ (トレーサビリティ用)
+        │   └── row_N/score_summary.json # そのRowの各Iterのスコア集計結果 (Max/Min)
 
 ## 3. ロジックとワークフロー
 ### 3.1. テキスト生成/進化 (`src/generate.py`)
@@ -54,6 +56,19 @@
 
 ### 3.2. 評価 (`src/evaluate.py`)
 - テキストを評価し、`metrics.json` を出力。
+
+### 3.2. 評価 (`src/evaluate.py`)
+- テキストを評価し、`metrics.json` を出力。
+- **Score Summarization**: 各Rowの全Iterationのスコア（Max, Min, Mean）を集計し、`score_summary.json` を出力/更新する。
+
+### 3.3. 結果集計 (`src/aggregate_results.py`)
+- プロジェクト全体の結果を集約する。
+- 全実験・全手法・全Rowの `score_summary.json` をクロールし、`result/aggregation_report.csv` に出力する。
+- 以下の統計量を算出:
+  - Avg_Max_Score (平均最大スコア)
+  - Global_Max_Score (全体最大スコア)
+  - Avg_Min_Score (平均最小スコア)
+  - Global_Min_Score (全体最小スコア)
 
 ## 4. 進化戦略 (Evolution Strategies)
 `--evolution-method` で指定可能。全ての戦略は「テキスト」を入出力とします。

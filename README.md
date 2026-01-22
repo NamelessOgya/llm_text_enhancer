@@ -112,8 +112,14 @@ docker run --rm -it -v $(pwd):/app llm_text_enhancer /bin/bash
 # パイプライン生成
 python3 src/generate_pipeline.py
 
+# データセットの準備 (必要に応じて)
+python3 src/prepare_tldr_data.py --dataset tldr
+
 # 実験実行
 ./run_pipeline.sh
+
+# データ集計
+python3 src/aggregate_results.py
 ```
 
 ## 実行方法 (ローカル)
@@ -130,6 +136,18 @@ python3 src/generate_pipeline.py
 
 # 実験実行
 ./run_pipeline.sh
+
+# データ集計
+python3 src/aggregate_results.py
+```
+
+## 結果の集計 (Aggregation)
+
+`src/aggregate_results.py` を実行すると、全実験・全手法・全イテレーションのスコア（最大・最小）が集計され、`result/aggregation_report.csv` に出力されます。
+
+```bash
+python3 src/aggregate_results.py
+# オプション: --result-dir "path/to/result" --output "my_report.csv"
 ```
 
 ## テストの実行
