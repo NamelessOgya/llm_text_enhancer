@@ -19,24 +19,39 @@ def aggregate_scores(result_dir):
     
     # glob pattern to find score_summary.json
     # We assume 3 levels of depth for task/method/row
-    pattern = os.path.join(result_dir, "*", "*", "row_*", "score_summary.json")
-    summary_files = glob.glob(pattern)
+    # glob pattern to find score_summary.json recursively
+    # This handles both old structure (result/exp/method/row_N) and new (result/exp/method/evaluator/row_N)
+    pattern = os.path.join(result_dir, "**", "score_summary.json")
+    summary_files = glob.glob(pattern, recursive=True)
     
     print(f"Found {len(summary_files)} summary files.")
     
     for summary_file in summary_files:
         try:
-            # path parts: .../result/{task_id}/{method}/{row_dir}/score_summary.json
-            parts = summary_file.split(os.sep)
-            # Find index of result_dir to identify relative parts
-            # simplistic approach: take last 4 parts: task, method, row, filename
+            # path parts: .../result/{exp}/{method}/.../{row_dir}/score_summary.json
+            rel_path = os.path.relpath(summary_file, result_dir)
+            parts = rel_path.split(os.sep)
+            
+            # e.g., ["exp_id", "method", "row_0", "score_summary.json"] (len 4)
+            # or ["exp_id", "method", "evaluator", "row_0", "score_summary.json"] (len 5)
+            
             if len(parts) < 4:
                 continue
                 
-            task_id = parts[-4]
-            method = parts[-3]
+            task_id = parts[0]
+            method = parts[1]
+            # row is always parent of file
             row_name = parts[-2]
             
+            # If we have extra levels (evaluator), append to method or track separately
+            # For compatibility, let's include intermediate folders in Method column or add Evaluator column
+            evaluator = "default"
+            if len(parts) > 4:
+                 # simple heuristic: everything between method and row is evaluator info
+                 # parts[2 : -2]
+                 evaluator_parts = parts[2:-2]
+                 evaluator = "_".join(evaluator_parts)
+
             with open(summary_file, 'r') as f:
                 summary = json.load(f)
                 
@@ -47,6 +62,7 @@ def aggregate_scores(result_dir):
                 data.append({
                     "Task": task_id,
                     "Method": method,
+                    "Evaluator": evaluator,
                     "Row": row_name,
                     "Iteration": iteration,
                     "Max_Score": stats.get("max", 0.0),
@@ -77,9 +93,9 @@ def main():
     # Validation/Sanity check
     print(f"Collected {len(df)} data points.")
     
-    # Group by Task, Method, Iteration to calculate global stats
+    # Group by Task, Method, Evaluator, Iteration to calculate global stats
     # We want: Mean of Max Scores (across rows), Global Max (across rows), etc.
-    grouped = df.groupby(["Task", "Method", "Iteration"]).agg({
+    grouped = df.groupby(["Task", "Method", "Evaluator", "Iteration"]).agg({
         "Max_Score": ["mean", "max", "min", "std"],
         "Min_Score": ["mean", "min"],
         "Mean_Score": ["mean"]
@@ -101,7 +117,7 @@ def main():
     })
     
     # Sort
-    grouped = grouped.sort_values(by=["Task", "Method", "Iteration"])
+    grouped = grouped.sort_values(by=["Task", "Method", "Evaluator", "Iteration"])
     
     # Output
     output_dir = os.path.dirname(args.output)

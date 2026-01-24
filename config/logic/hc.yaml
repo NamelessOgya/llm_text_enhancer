@@ -1,0 +1,5 @@
+# Hypothesis Exploration / Construction Configuration
+
+# knowledge.jsonの更新時に参照する過去の世代数
+# lookback_generations: 3
+he_lookback: 3

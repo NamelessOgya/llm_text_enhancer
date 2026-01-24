@@ -1,4 +1,3 @@
-import re
 from typing import Optional, Tuple
 from .interface import Evaluator
 
@@ -76,6 +75,9 @@ def get_rule_evaluator(rule_type: str) -> Optional[Evaluator]:
         return RegexRuleEvaluator()
     elif rule_type == "rule_meteor":
         return MeteorRuleEvaluator()
+    elif rule_type == "perspectrum_rule":
+        from .perspectrum_evaluator import PerspectrumRuleEvaluator
+        return PerspectrumRuleEvaluator()
     return None
 
 class MeteorRuleEvaluator(Evaluator):

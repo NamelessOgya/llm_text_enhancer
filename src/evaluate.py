@@ -103,9 +103,9 @@ def main():
     parser.add_argument("--evolution-method", default="ga") # ディレクトリ特定のため必要
     args = parser.parse_args()
 
-    # 親ディレクトリ: result/exp/method
+    # 親ディレクトリ: result/exp/method/evaluator
     # この下の row_* を全て処理する
-    base_result_dir = os.path.join("result", args.experiment_id, args.evolution_method)
+    base_result_dir = os.path.join("result", args.experiment_id, args.evolution_method, args.evaluator_type)
     
     # row_* ディレクトリを検索
     row_dirs = glob.glob(os.path.join(base_result_dir, "row_*"))
@@ -128,6 +128,13 @@ def main():
     
     if args.evaluator_type == "llm":
         llm = get_llm_adapter(args.adapter_type, args.model_name)
+    elif args.evaluator_type == "perspectrum_llm":
+        from llm.interface import LLMInterface # ensure type availability if needed
+        base_llm = get_llm_adapter(args.adapter_type, args.model_name)
+        from evaluation.perspectrum_evaluator import PerspectrumLLMEvaluator
+        # We need to treat this as an Evaluator, not just raw LLM
+        # So we set rule_evaluator to this special LLM-based evaluator wrapper
+        rule_evaluator = PerspectrumLLMEvaluator(base_llm)
     else:
         rule_evaluator = get_rule_evaluator(args.evaluator_type)
         if not rule_evaluator:
@@ -186,8 +193,9 @@ def main():
         
         # 決定ロジック
         eval_target_content = current_target_pref
-        if args.evaluator_type == "rule_meteor":
-             # METEORの場合はデータセットからのReferenceを優先。なければTAMLの中身(もしあれば)
+        # METEORやPerspectrum系など、正解データ（Reference）との比較が必要なEvaluatorの場合
+        if args.evaluator_type in ["rule_meteor", "perspectrum_rule", "perspectrum_llm"]:
+             # データセットからのReferenceを優先。なければTAMLの中身(もしあれば)
              if reference_text_from_dataset:
                  eval_target_content = reference_text_from_dataset
 

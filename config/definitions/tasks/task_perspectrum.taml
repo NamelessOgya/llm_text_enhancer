@@ -8,6 +8,7 @@ description: "Generate a perspective (stance and reason) for a given claim."
 # Instruction
 Based on the above claim, provide a perspective.
 You must always explicitly state your stance as "SUPPORT" or "OPPOSE" at the beginning, followed by the reason.
+The reason should be concise, ideally around 50 words.
 
 Format: "SUPPORT: [Reason]" or "OPPOSE: [Reason]"
 

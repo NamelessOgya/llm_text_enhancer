@@ -21,74 +21,7 @@ def load_metrics(metrics_path: str) -> List[Dict]:
     with open(metrics_path, 'r') as f:
         return json.load(f)
 
-def generate_initial_texts(llm: LLMInterface, k: int, task_def: str) -> List[Tuple[str, str]]:
-    """
-    初期世代(Generation 0)のテキスト個体群を生成する。
-    タスク定義に基づき、多様なテキスト案をゼロベースで生成する。
-    
-    Returns:
-        List[Tuple[str, str]]: (生成されたテキスト, 生成に使用したメタプロンプト)
-    """
-    logger.info("Generating initial population (Texts)...")
-    
-    # 複数生成を一括で行うプロンプト
-    creation_prompt = f"""
-Task Definition: "{task_def}"
 
-Goal: Generate {k} distinct, high-quality text outputs for the above task.
-
-Requirements:
-1. Generate exactly {k} different text variations.
-2. The texts should vary in style, tone, or perspective.
-3. OUTPUT MUST BE A VALID JSON LIST OF STRINGS. No other text.
-
-Example Output:
-["Text option 1 including details...", "Text option 2 with different focus...", ...]
-"""
-    response = llm.generate(creation_prompt)
-    
-    # JSONパース
-    try:
-        cleaned_response = response.strip()
-        if cleaned_response.startswith("```"):
-            cleaned_response = cleaned_response.split("\n", 1)[1]
-            if cleaned_response.rfind("```") != -1:
-                cleaned_response = cleaned_response[:cleaned_response.rfind("```")]
-        
-        text_list = json.loads(cleaned_response)
-        
-        if isinstance(text_list, list):
-            # 文字列かつ空でないものだけ抽出
-            texts = [(str(t).strip(), creation_prompt) for t in text_list if str(t).strip()]
-        else:
-            logger.error(f"LLM returned invalid JSON structure: {type(text_list)}")
-            texts = []
-            
-    except json.JSONDecodeError:
-        logger.warning(f"Failed to parse JSON response: {response}. Falling back to line splitting.")
-        lines = response.split('\n')
-        texts = []
-        for line in lines:
-            line = line.strip()
-            if not line or line.lower().startswith("here are") or line.startswith("```"):
-                continue
-            if line[0].isdigit() and ". " in line[:5]:
-                line = line.split(". ", 1)[1]
-            elif line.startswith("- "):
-                line = line[2:]
-            
-            texts.append((line, creation_prompt))
-
-    # 数合わせ
-    texts = texts[:k]
-    while len(texts) < k:
-        fallback_creation = f"Fallback padding for task: {task_def}"
-        # フォールバックとして単発生成を行う
-        single_prompt = f"Generate a high-quality text for the task: {task_def}\nOutput only the text."
-        single_text = llm.generate(single_prompt).strip()
-        texts.append((single_text, single_prompt))
-        
-    return texts
 
 def main():
     parser = argparse.ArgumentParser(description="テキスト直接最適化を実行するメインスクリプト")
@@ -203,8 +136,10 @@ def main():
         generated_outputs = [] # List[Tuple[text, logic]]
 
         if args.iteration == 0:
-            # 初期生成: タスク定義から直接テキストを生成
-            generated_outputs = generate_initial_texts(llm, args.population_size, current_task_def)
+            # 初期生成: Strategyに委譲 (Iter 0 用のロジック実行)
+            # HGStrategyなどが独自の初期化を行う場合に対応
+            strategy = get_evolution_strategy(args.evolution_method)
+            generated_outputs = strategy.generate_initial(llm, args.population_size, current_task_def, context=None)
         else:
             # 進化: 前世代のテキストを変異/改善
             # 前イテレーションのディレクトリ: [result_dir]/row_[idx]/iter[N-1]
@@ -231,12 +166,31 @@ def main():
                         "file": file_name,
                         "prompt": "N/A"
                     })
+                    
+                    # Logic (Meta-Prompt / JSON) の読み込み
+                    # filename は text_N.txt なので logic/creation_prompt_N.txt を推測
+                    # もしくは prompt_N.txt ? generate_pipeline的には creation_prompt を保存している
+                    # 前世代の保存ロジック:
+                    # 1. prompts_dir/prompt_{i}.txt
+                    # 2. logic_dir/creation_prompt_{i}.txt
+                    # text_file = text_{i}.txt
+                    
+                    try:
+                        # Extract index from filename "text_X.txt"
+                        idx_str = file_name.replace("text_", "").replace(".txt", "")
+                        logic_path = os.path.join(prev_iter_dir, "logic", f"creation_prompt_{idx_str}.txt")
+                        if os.path.exists(logic_path):
+                             with open(logic_path, 'r') as lf:
+                                 population[-1]["prompt"] = lf.read()
+                    except Exception as le:
+                        logger.warning(f"Failed to load logic for {file_name}: {le}")
                 except Exception as e:
                     logger.warning(f"Skipping metric {m}: {e}")
             
             if not population:
                 logger.warning(f"No valid population found in {prev_iter_dir}. Using initial generation fallback.")
-                generated_outputs = generate_initial_texts(llm, args.population_size, current_task_def)
+                strategy = get_evolution_strategy(args.evolution_method)
+                generated_outputs = strategy.generate_initial(llm, args.population_size, current_task_def, context=None)
             else:
                 strategy = get_evolution_strategy(args.evolution_method)
                 context = {

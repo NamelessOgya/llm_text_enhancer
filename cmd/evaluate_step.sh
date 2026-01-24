@@ -14,7 +14,7 @@ EVOLUTION_METHOD=${7:-ga}
 # Get absolute path to project root
 PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 PYTHONpath="$PROJECT_ROOT/src"
-RESULT_DIR="$PROJECT_ROOT/result/$EXPERIMENT_ID/$EVOLUTION_METHOD"
+RESULT_DIR="$PROJECT_ROOT/result/$EXPERIMENT_ID/$EVOLUTION_METHOD/$EVALUATOR_TYPE"
 
 echo "Running Evaluation Step for $EXPERIMENT_ID ($EVOLUTION_METHOD) Iteration $ITERATION (Evaluator: $EVALUATOR_TYPE)"
 

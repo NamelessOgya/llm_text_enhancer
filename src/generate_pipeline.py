@@ -58,8 +58,9 @@ def main():
                 # 少なくとも row_0 (データセットなしの場合も含む) が完了しているかで判断する。
                 
                 # generate.py がデフォルトで作成するディレクトリ構造に合わせる
-                # 既存: result/exp/method/iterN -> 新規: result/exp/method/row_0/iterN
-                base_iter_dir = os.path.join(project_root, "result", exp_id, evolution_method)
+                # 既存: result/exp/method/iterN -> 新規: result/exp/method/evaluator/row_0/iterN
+                # Note: evaluator_type defaults to "llm" if not specified.
+                base_iter_dir = os.path.join(project_root, "result", exp_id, evolution_method, evaluator)
                 check_file = os.path.join(base_iter_dir, f"row_0/iter{i}/metrics.json")
                 
                 # 冪等性(Idempotency)の確保
@@ -68,8 +69,8 @@ def main():
                 f.write(f"    echo \"Running Iteration {i}\"\n")
                 
                 # 生成ステップ (Generation Phase)
-                # 引数を追加: evolution_method, ensemble_ratios
-                f.write(f"    ./cmd/generate_next_step.sh \"{exp_id}\" \"{i}\" \"{pop_size}\" \"{model}\" \"{adapter_type}\" \"{task_def}\" \"{evolution_method}\" \"{ensemble_ratios}\"\n")
+                # 引数を追加: evolution_method, ensemble_ratios, evaluator (for result path)
+                f.write(f"    ./cmd/generate_next_step.sh \"{exp_id}\" \"{i}\" \"{pop_size}\" \"{model}\" \"{adapter_type}\" \"{task_def}\" \"{evolution_method}\" \"{ensemble_ratios}\" \"{evaluator}\"\n")
                 
                 # 評価ステップ (Evaluation Phase)
                 # パス解決のために evolution_method を渡す
