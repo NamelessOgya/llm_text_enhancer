@@ -1451,18 +1451,41 @@ Forbidden Personas (DO NOT USE): {existing_personas_str}
 
 Goal: Generate a NEW, DISTINCT Persona who supports the Common Stance but from a different background/perspective.
 Constraint 1: You must NOT use any persona listed in the "Forbidden Personas" list above.
-Constraint 2: DO NOT output any reasoning, explanation, or "SUPPORT:" prefix.
-Constraint 3: Output MUST be a single line containing ONLY the Persona Name.
+Constraint 2: Output MUST be a valid JSON object.
 
-Examples: "Economist", "Historian", "Single Parent", "Software Engineer", "Ethicist", "Local Business Owner".
+Examples: {{"persona": "Economist"}}, {{"persona": "Single Parent"}}, {{"persona": "Ethicist"}}
 
-Output ONLY the Persona Name.
+Output schema:
+{{
+  "persona": "string"
+}}
 """
                  # Retry loop for uniqueness
                  max_retries = 3
                  for retry in range(max_retries):
-                     target_persona = llm.generate(persona_gen_prompt).strip()
-                     # Clean up basics only
+                     try:
+                         target_json_str = llm.generate(
+                             persona_gen_prompt, 
+                             response_mime_type="application/json"
+                         ).strip()
+                         target_data = json.loads(target_json_str)
+                         if isinstance(target_data, list):
+                             if target_data and isinstance(target_data[0], dict):
+                                 target_persona = target_data[0].get("persona", "").strip()
+                             elif target_data and isinstance(target_data[0], str):
+                                 target_persona = target_data[0].strip()
+                             else:
+                                 target_persona = ""
+                         elif isinstance(target_data, dict):
+                             target_persona = target_data.get("persona", "").strip()
+                         else:
+                             target_persona = ""
+                     except Exception as e:
+                         # Fallback or retry on parse error
+                         logger.warning(f"Persona generation JSON parse error: {e}")
+                         target_persona = ""
+                     
+                     # Clean up basics (just in case)
                      target_persona = target_persona.replace('"', '').replace("'", "").strip()
                      
                      # Check uniqueness (case-insensitive)

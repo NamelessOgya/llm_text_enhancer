@@ -17,6 +17,10 @@ class LLMEvaluator(Evaluator):
             llm (LLMInterface): 評価に使用するLLMアダプター (OpenAIやGeminiなど)
         """
         self.llm = llm
+        
+        # Initialize Cache
+        from .cache import EvaluationCache
+        self.cache = EvaluationCache()
 
     def evaluate(self, text: str, target: str) -> Tuple[float, str]:
         """
@@ -35,6 +39,11 @@ class LLMEvaluator(Evaluator):
             Tuple[float, str]: (スコア, 理由)
                 パース失敗時やエラー時はスコア0.0、理由にエラー内容をセットして返す。
         """
+        # 0. Check Cache
+        cached_result = self.cache.get("LLMEvaluator", text, target)
+        if cached_result:
+            return cached_result
+
         # 評価用プロンプトの構築
         # "Score:" と "Reason:" という特定のフォーマットでの出力を強制する。
         prompt = f"""
@@ -76,9 +85,16 @@ class LLMEvaluator(Evaluator):
                 if not score_match: 
                      reason = response_text
             
+            # Save to Cache
+            # Only save if we got a valid score (or if we want to cache 0.0 failures too? usually better to retry failures)
+            # But here failures return 0.0 with reason.
+            # Let's cache everything that didn't raise Exception.
+            self.cache.set("LLMEvaluator", text, target, score, reason)
+            
         except Exception as e:
             logger.error(f"Error evaluating text: {e}")
             score = 0.0
             reason = f"Error: {e}"
+            # Do NOT cache DB/API errors so we can retry
             
         return score, reason

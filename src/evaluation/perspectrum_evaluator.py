@@ -114,19 +114,41 @@ class PerspectrumLLMEvaluator(Evaluator):
     def __init__(self, llm: LLMInterface, config_path: str = "config/task/perspectrum.yaml"):
         self.llm = llm
         self.max_words = 50 # Default
+        self.llm_eval_repeat = 3 # Default
         
         # Reuse parsing logic from RuleEvaluator
         # We can instantiate it or copy logic. Instantiating is cleaner if we want to share config loading.
         # But PerspectrumRuleEvaluator takes config_path.
         self._rule_checker = PerspectrumRuleEvaluator(config_path)
         self.max_words = self._rule_checker.max_words
+        
+        # Determine llm_eval_repeat from config
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, 'r') as f:
+                    config = yaml.safe_load(f)
+                    if config and "llm_eval_repeat" in config:
+                        self.llm_eval_repeat = int(config["llm_eval_repeat"])
+            except Exception:
+                pass # Already logged or handled elsewhere/defaults apply
+        
+        # Initialize Cache
+        from .cache import EvaluationCache
+        self.cache = EvaluationCache()
 
     def evaluate(self, text: str, target: str) -> Tuple[float, str]:
+        # 0. Check Cache
+        cached_result = self.cache.get("PerspectrumLLMEvaluator", text, target)
+        if cached_result:
+            return cached_result
+
         # 1. Rule-based Pre-check
         # We use the rule evaluator's helper or logic
         score, reason = self._check_rules(text, target)
         if score == 0.0 and reason != "":
-             return 0.0, reason
+            # Store rule failures in cache too? Yes, to save re-processing.
+            self.cache.set("PerspectrumLLMEvaluator", text, target, 0.0, reason)
+            return 0.0, reason
 
         # 2. LLM Evaluation (Logical Basis Match)
         prompt = f"""
@@ -184,32 +206,48 @@ Output JSON format:
     "reason": "<string>"
 }}
 """
-        response = self.llm.generate(prompt, temperature=0.0)
-        try:
-            import json
-            cleaned = response.strip()
-            if cleaned.startswith("```"):
-                cleaned = cleaned.split("\n", 1)[1]
-                if cleaned.rfind("```") != -1:
-                    cleaned = cleaned[:cleaned.rfind("```")]
-            data = json.loads(cleaned)
+        valid_results = []
+        
+        for i in range(self.llm_eval_repeat):
+            try:
+                # Even with temperature 0.0, there might be slight variance or we just want robustness against failure
+                response = self.llm.generate(prompt, temperature=0.0)
+                
+                cleaned = response.strip()
+                if cleaned.startswith("```"):
+                    cleaned = cleaned.split("\n", 1)[1]
+                    if cleaned.rfind("```") != -1:
+                        cleaned = cleaned[:cleaned.rfind("```")]
+                
+                import json
+                data = json.loads(cleaned)
+                
+                raw_score = float(data.get("score", 1.0))
+                
+                # Clamp to min 1.0 just in case LLM hallucinates 0
+                if raw_score < 1.0:
+                    raw_score = 1.0
+                
+                # Normalize 1-10 to 0.1-1.0
+                normalized_score = raw_score / 10.0
+                
+                reason = data.get("reason", "")
+                
+                valid_results.append((normalized_score, reason))
             
-            raw_score = float(data.get("score", 1.0))
+            except Exception as e:
+                logger.warning(f"PerspectrumLLMEvaluator attempt {i+1}/{self.llm_eval_repeat} failed: {e}")
+        
+        if not valid_results:
+            return 0.0, f"[Exception] All {self.llm_eval_repeat} attempts failed to parse or execute."
             
-            # Clamp to min 1.0 just in case LLM hallucinates 0
-            if raw_score < 1.0:
-                raw_score = 1.0
-            
-            # Normalize 1-10 to 0.1-1.0
-            normalized_score = raw_score / 10.0
-            
-            reason = data.get("reason", "")
-            
-            return normalized_score, reason
-
-        except Exception as e:
-            logger.warning(f"PerspectrumLLMEvaluator LLM parse failed: {e}", exc_info=True)
-            return 0.0, f"[Exception] LLM Parse Error: {e}"
+        # Take the result with the maximum score
+        best_score, best_reason = max(valid_results, key=lambda x: x[0])
+        
+        # Save to Cache
+        self.cache.set("PerspectrumLLMEvaluator", text, target, best_score, best_reason)
+        
+        return best_score, best_reason
 
     def _check_rules(self, text: str, target: str) -> Tuple[float, str]:
         """

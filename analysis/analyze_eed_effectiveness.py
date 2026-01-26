@@ -40,10 +40,10 @@ def get_candidate_type(iter_dir, filename):
             if isinstance(data, dict):
                 t = data.get("type", "Unknown")
                 
-                # EED types mapping
-                if t == "eed_exploit": return "Exploit"
-                if t == "eed_diversity_candidate": return "Diversity"
-                if t == "eed_explore_candidate": return "Explore"
+                # EED types mapping (Robust substring matching)
+                if "exploit" in t: return "Exploit"
+                if "diversity" in t or "novelty" in t: return "Diversity"
+                if "explore" in t: return "Explore"
                 if t == "inherited" or t == "eed_inherited": return "Elitism"
                 if "fallback" in t: return "Fallback"
                 return t # Other JSON types

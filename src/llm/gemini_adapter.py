@@ -88,7 +88,9 @@ class GeminiAdapter(LLMInterface):
                 contents=full_content,
                 config=types.GenerateContentConfig(
                     candidate_count=1,
-                    temperature=kwargs.get("temperature", 0.7)
+                    temperature=kwargs.get("temperature", 0.7),
+                    response_mime_type=kwargs.get("response_mime_type"),
+                    response_schema=kwargs.get("response_schema")
                 )
             )
             
