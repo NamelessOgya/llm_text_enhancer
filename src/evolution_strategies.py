@@ -1106,9 +1106,11 @@ class EEDStrategy(EvolutionStrategy):
         grad_temp = self.config["grad_temperature"]
         pass_rate = self.config["sample_pass_rate"]
         elite_num = self.config.get("elite_sample_num", 1)
-        
+        persona_reuse = self.config.get("persona_reuse_rate", 0.5)
+
         # Adjust k if config sums don't match (Prioritize config ratios, but fit to k)
         total_config = exploit_num + diversity_num + explore_num
+
         if k != total_config:
              logger.warning(f"Population size {k} != Config Sum {total_config}. Scaling config.")
              ratio_ex = exploit_num / total_config
@@ -1394,9 +1396,9 @@ Core Arguments:
         new_items_to_save = []
 
         for i in range(gen_count):
-             # 1. Decide Persona Strategy (50% New, 50% Existing)
+             # 1. Decide Persona Strategy (Rate from config, default 0.5)
              use_existing_persona = False
-             if explored_items and random.random() < 0.5:
+             if explored_items and random.random() < persona_reuse:
                  use_existing_persona = True
                  
              target_persona = ""

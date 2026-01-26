@@ -4,3 +4,4 @@ explore_sample_num: 5
 grad_temperature: 1.0
 sample_pass_rate: 2
 elite_sample_num: 1
+persona_reuse_rate: 0.0
