@@ -1,45 +1,34 @@
-# Visualization Configuration for Publication Quality Figures
-
-# Font Settings
 font:
-  family: "serif"
-  serif: ["DejaVu Serif", "Times New Roman"]
-  sans_serif: ["DejaVu Sans", "Arial"]
-  size_title: 16
-  size_label: 14
-  size_tick: 12
-  size_legend: 12
+  family: "DejaVu Sans"
+  size_tick: 10
+  size_title: 14
+  size_label: 12
+  size_legend: 10
 
-# Figure Settings
 figure:
-  figsize_single: [10, 6]
-  figsize_wide: [15, 6]
   dpi: 300
   facecolor: "white"
   grid_alpha: 0.3
+  figsize_tall: [10, 14]
 
-# Plotting Styles
 style:
   linewidth: 2.5
   markersize: 8
-  capsize: 5  # For error bars
 
-# Color Palette (Publication friendly, colorblind safe where possible)
 colors:
   default: "#333333"
   methods:
     ga: "#1f77b4"        # Blue
     textgrad: "#ff7f0e"  # Orange
-    he: "#2ca02c"        # Green
-    hg: "#d62728"        # Red
-    trajectory: "#9467bd" # Purple
-    demonstration: "#8c564b" # Brown
-    random: "#7f7f7f"    # Gray
-    baseline: "#000000"  # Black
+    eed: "#2ca02c"       # Green
+    trajectory: "#d62728" # Red
+    demonstration: "#9467bd" # Purple
+    ensemble: "#8c564b"  # Brown
+    hg: "#e377c2"        # Pink
+    he: "#7f7f7f"        # Gray
+    baseline: "#bcbd22"  # Olive
 
-# Output Settings
 output:
-  formats: ["png", "pdf"]
+  formats: ["png"]
   save_kwargs:
     bbox_inches: "tight"
-    transparent: false

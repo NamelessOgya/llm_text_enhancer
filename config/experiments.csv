@@ -1,7 +1,5 @@
-experiment_id,max_generations,population_size,model_name,adapter_type,evaluator_type,task_definition,target_preference,evolution_method,ensemble_ratios
-perspectrum_v1.1,10,10,gemini-2.0-flash-lite,gemini,perspectrum_rule,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,textgrad,
-perspectrum_v1.1,10,10,gemini-2.0-flash-lite,gemini,perspectrum_llm,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,textgrad,
-perspectrum_v1.1,10,10,gemini-2.0-flash-lite,gemini,perspectrum_rule,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,ga,
-perspectrum_v1.1,10,10,gemini-2.0-flash-lite,gemini,perspectrum_llm,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,ga,
-perspectrum_v1.1,10,10,gemini-2.0-flash-lite,gemini,perspectrum_rule,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,he,
-perspectrum_v1.1,10,10,gemini-2.0-flash-lite,gemini,perspectrum_llm,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,he,
+experiment_id,max_generations,population_size,model_name,adapter_type,evaluator_type,task_definition,target_preference,evolution_method,ensemble_ratios,population_name
+perspectrum_v1.1,10,10,gemini-2.0-flash-lite,gemini,perspectrum_rule,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,eed,,run1
+perspectrum_v1.1,10,10,gemini-2.0-flash-lite,gemini,perspectrum_rule,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,ga,,run1
+perspectrum_v1.1,10,10,gemini-2.0-flash-lite,gemini,perspectrum_rule,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,textgrad,,run1
+perspectrum_v1.1,10,10,gemini-2.0-flash-lite,gemini,perspectrum_rule,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,textgradv2,,run1

@@ -28,6 +28,9 @@ def main():
         f.write("#!/bin/bash\n")
         f.write("# Generated pipeline script\n\n")
         f.write("set -e\n\n") # エラー発生時に即時終了 (安全性確保)
+
+        f.write(f"PROJECT_ROOT=\"{project_root}\"\n")
+        f.write(f"PYTHONpath=\"$PROJECT_ROOT/src\"\n\n")
  
         for exp in experiments:
             exp_id = exp['experiment_id']
@@ -45,36 +48,52 @@ def main():
             # 下位互換性維持 & 新機能対応
             evolution_method = exp.get('evolution_method', 'ga')
             ensemble_ratios = exp.get('ensemble_ratios', '')
+            population_name = exp.get('population_name', 'default')
             
-            f.write(f"# Experiment: {exp_id} ({evolution_method})\n")
-            f.write(f"echo \"Starting Experiment: {exp_id} with {evolution_method}\"\n")
+            f.write(f"# Experiment: {exp_id} ({evolution_method}) [Pop: {population_name}]\n")
+            f.write(f"echo \"Starting Experiment: {exp_id} with {evolution_method} (Pop: {population_name})\"\n")
+
+            # 初期化チェック (Populationごと)
+            # result/[exp_id]/initial_population/[pop_name]
+            initial_pop_dir = os.path.join(project_root, "result", exp_id, "initial_population", population_name)
+            
+            # 初期化コマンドの挿入 (まだ初期化コードが書かれていない場合のみ)
+            # シェルスクリプト上でのチェックも入れるが、Python側でも重複して書かないように制御してもよい
+            # ここではシンプルに毎回チェックを入れる（シェル側で判定）
+            f.write(f"if [ ! -d \"{initial_pop_dir}\" ]; then\n")
+            f.write(f"    echo \"Initializing Population: {population_name} for {exp_id}\"\n")
+            f.write(f"    export PYTHONPATH=$PYTHONpath\n")
+            f.write(f"    python3 \"$PROJECT_ROOT/src/initialize_task.py\" \\\n")
+            f.write(f"        --experiment-id \"{exp_id}\" \\\n")
+            f.write(f"        --population-name \"{population_name}\" \\\n")
+            f.write(f"        --population-size \"{pop_size}\" \\\n")
+            f.write(f"        --model-name \"{model}\" \\\n")
+            f.write(f"        --adapter-type \"{adapter_type}\" \\\n")
+            f.write(f"        --task-definition \"{task_def}\"\n")
+            f.write("fi\n\n")
             
             # 各世代(iteration)ごとの実行コマンドを生成
             for i in range(max_gen):
-                # フォルダ構成を result/exp_id/method/iterN に変更
-                # フォルダ構成を result/exp_id/method/iterN から result/exp_id/method/row_*/iterN に変更
-                # スキップ判定: row_0/iterN/metrics.json があれば完了とみなす (簡易チェック)
-                # 本来は全rowを確認すべきだが、パイプライン生成時点ではrow数はデータセット依存で不明なため、
-                # 少なくとも row_0 (データセットなしの場合も含む) が完了しているかで判断する。
+                # フォルダ構成を result/exp_id/pop_name/method/evaluator/row_*/iterN に変更
                 
-                # generate.py がデフォルトで作成するディレクトリ構造に合わせる
-                # 既存: result/exp/method/iterN -> 新規: result/exp/method/evaluator/row_0/iterN
-                # Note: evaluator_type defaults to "llm" if not specified.
-                base_iter_dir = os.path.join(project_root, "result", exp_id, evolution_method, evaluator)
+                # check_file path update
+                # generate.py uses: result_dir = .../method/evaluator
+                # inside generate.py: result_dir/row_0/iterN
+                # So full path: result/exp_id/pop_name/method/evaluator/row_0/iterN/metrics.json
+                base_iter_dir = os.path.join(project_root, "result", exp_id, population_name, evolution_method, evaluator)
                 check_file = os.path.join(base_iter_dir, f"row_0/iter{i}/metrics.json")
                 
                 # 冪等性(Idempotency)の確保
-                # row_0 の metrics.json があればスキップ (bash glob展開は複雑になるので固定パスで簡易判定)
                 f.write(f"if [ ! -f \"{check_file}\" ]; then\n")
                 f.write(f"    echo \"Running Iteration {i}\"\n")
                 
                 # 生成ステップ (Generation Phase)
-                # 引数を追加: evolution_method, ensemble_ratios, evaluator (for result path)
-                f.write(f"    ./cmd/generate_next_step.sh \"{exp_id}\" \"{i}\" \"{pop_size}\" \"{model}\" \"{adapter_type}\" \"{task_def}\" \"{evolution_method}\" \"{ensemble_ratios}\" \"{evaluator}\"\n")
+                # 引数を追加: ..., population_name
+                f.write(f"    ./cmd/generate_next_step.sh \"{exp_id}\" \"{i}\" \"{pop_size}\" \"{model}\" \"{adapter_type}\" \"{task_def}\" \"{evolution_method}\" \"{ensemble_ratios}\" \"{evaluator}\" \"{population_name}\"\n")
                 
                 # 評価ステップ (Evaluation Phase)
-                # パス解決のために evolution_method を渡す
-                f.write(f"    ./cmd/evaluate_step.sh \"{exp_id}\" \"{i}\" \"{model}\" \"{adapter_type}\" \"{evaluator}\" \"{target}\" \"{evolution_method}\"\n")
+                # パス解決のために evolution_method, population_name を渡す
+                f.write(f"    ./cmd/evaluate_step.sh \"{exp_id}\" \"{i}\" \"{model}\" \"{adapter_type}\" \"{evaluator}\" \"{target}\" \"{evolution_method}\" \"{population_name}\"\n")
                 
                 f.write("else\n")
                 f.write(f"    echo \"Skipping Iteration {i} (already completed)\"\n")

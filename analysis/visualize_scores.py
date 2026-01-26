@@ -58,26 +58,75 @@ def parse_results(result_dir="result"):
     files = glob.glob(search_pattern, recursive=True)
     
     for file_path in files:
-        # result/task/method/row/score_summary.json
+        # Path structure variations:
+        # 1. result/task/method/row/score_summary.json (Legacy)
+        # 2. result/task/method/evaluator/row/score_summary.json (Previous)
+        # 3. result/task/pop/method/evaluator/row/score_summary.json (New)
+        
         parts = os.path.relpath(file_path, result_dir).split(os.sep)
-        if len(parts) < 4:
+        
+        # Find 'row_N' index to anchor the parsing
+        row_idx = -1
+        for i, part in enumerate(parts):
+            if part.startswith("row_"):
+                row_idx = i
+                break
+        
+        if row_idx == -1:
             continue
             
-        task_base = parts[0]
-        method = parts[1]
-        # row is always the parent directory of the file (second to last in path parts)
-        row = parts[-2]
+        row = parts[row_idx]
         
-        # Check for evaluator layer (depth 5: task/method/evaluator/row/file)
-        if len(parts) > 4:
-            # Assume everything between method and row is evaluator info
-            evaluator_parts = parts[2:-2]
-            evaluator_str = "/".join(evaluator_parts)
-            # Treat different evaluators as different tasks
-            task = f"{task_base} ({evaluator_str})"
+        # Everything before row is structure
+        structure_parts = parts[:row_idx]
+        
+        if len(structure_parts) < 2:
+            continue
+            
+        task_base = structure_parts[0]
+        
+        # Heuristic to identify new structure vs old
+        # New: task/pop/method/evaluator
+        # Old: task/method/evaluator
+        # Legacy: task/method
+        
+        pop_name = "default"
+        method = "unknown"
+        evaluator = "unknown"
+        
+        # If we have 4 parts before row: task/pop/method/evaluator
+        if len(structure_parts) == 4:
+            pop_name = structure_parts[1]
+            method = structure_parts[2]
+            evaluator = structure_parts[3]
+        # If we have 3 parts: task/method/evaluator OR task/pop/method (ambiguous without config, but assume task/method/evaluator is more common previous state)
+        # Let's check against known method names if possible, or assume task/method/evaluator
+        elif len(structure_parts) == 3:
+            # Check if part[1] is a known method or looks like a pop name?
+            # For robustness, assume task/method/evaluator (backward compatibility)
+            method = structure_parts[1]
+            evaluator = structure_parts[2]
+        # If we have 2 parts: task/method
+        elif len(structure_parts) == 2:
+            method = structure_parts[1]
+        
+        # Construct Task Name (including population and evaluator)
+        task_components = [task_base]
+        
+        if pop_name != "default":
+            task_components.append(pop_name)
+            
+        if evaluator != "unknown":
+            task_components.append(evaluator)
+            
+        task = "_".join(task_components).replace("(", "_").replace(")", "_").replace("/", "_")
+            
+        # Construct Method Name (including population if distinct)
+        if pop_name != "default":
+            method_display = f"{method} ({pop_name})"
         else:
-            task = task_base
-        
+            method_display = method
+            
         method_dir = os.path.dirname(file_path)
         
         # Load input_data.json if not already loaded
@@ -137,7 +186,7 @@ def parse_results(result_dir="result"):
                         # print(f"Error reading metrics/text in {iter_dir}: {e}")
                         pass
 
-            extracted_data[task][row]["methods"][method] = {
+            extracted_data[task][row]["methods"][method_display] = {
                 "stats": processed_data,
                 "best_text": best_text,
                 "best_score": best_score
@@ -180,7 +229,10 @@ def plot_scores(data, task, row, config, output_dir):
             x = [it['iteration'] for it in iterations]
             y = [it[metric] for it in iterations]
             
-            color = config['colors']['methods'].get(method_name, config['colors'].get('default', 'black'))
+            # method_name format: "method (pop)" or "method"
+            # Extract base method name for color lookup
+            base_method = method_name.split(" (")[0]
+            color = config['colors']['methods'].get(base_method, config['colors'].get('default', 'black'))
             ax.plot(x, y, label=method_name, color=color, marker='o')
         
         ax.set_xlabel("Iteration")
@@ -257,7 +309,19 @@ def main():
             'font': {'family': 'sans-serif', 'size_tick': 10, 'size_title': 12, 'size_label': 10, 'size_legend': 10},
             'figure': {'dpi': 100, 'facecolor': 'white', 'grid_alpha': 0.5, 'figsize_single': [10, 6]},
             'style': {'linewidth': 2, 'markersize': 6},
-            'colors': {'methods': {}, 'default': 'black'},
+            'colors': {
+                'methods': {
+                    'ga': '#1f77b4',
+                    'textgrad': '#ff7f0e',
+                    'eed': '#2ca02c',
+                    'trajectory': '#d62728',
+                    'demonstration': '#9467bd',
+                    'ensemble': '#8c564b',
+                    'hg': '#e377c2',
+                    'he': '#7f7f7f'
+                },
+                'default': 'black'
+            },
             'output': {'formats': ['png'], 'save_kwargs': {}}
         }
 

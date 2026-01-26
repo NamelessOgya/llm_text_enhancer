@@ -19,7 +19,7 @@ def download_json(url):
     except Exception as e:
         raise RuntimeError(f"Failed to download {url}: {e}")
 
-def prepare_perspectrum_data(output_path: str, sample_size: int = 100):
+def prepare_perspectrum_data(output_path: str, sample_size: int = 100, min_length: int = 0):
     """
     Downloads Perspectrum data from CogComp GitHub repository.
     Merges claims with perspective texts.
@@ -59,6 +59,11 @@ def prepare_perspectrum_data(output_path: str, sample_size: int = 100):
             
             if not stance:
                 continue
+
+            # Filtering: Exclude perspectives with no evidence (empty list)
+            evidence = p.get("evidence", [])
+            if not evidence:
+                continue
                 
             # Use the first pid's text, or all?
             # Usually these are paraphrases. Let's start with just the first one to avoid near-duplicates in a small sample.
@@ -72,12 +77,18 @@ def prepare_perspectrum_data(output_path: str, sample_size: int = 100):
             
             if not p_text:
                 continue
+
+            # Filtering: Min length check (word count)
+            if min_length > 0:
+                if len(p_text.split()) < min_length:
+                    continue
                 
             summary = f"{stance}: {p_text}"
             
             processed_data.append({
                 "content": claim_text,
-                "summary": summary
+                "summary": summary,
+                "stance_label": stance
             })
             
     print(f"Total flattened samples: {len(processed_data)}")
@@ -105,8 +116,9 @@ def run_preparation(config_path="config/data_generation_config.yaml", dataset_ke
     ds_config = config["datasets"][dataset_key]
     output_path = ds_config.get("output_path", "data/perspectrum.csv")
     sample_size = ds_config.get("sample_size", 100)
+    min_length = ds_config.get("min_length", 0)
     
-    prepare_perspectrum_data(output_path, sample_size)
+    prepare_perspectrum_data(output_path, sample_size, min_length)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

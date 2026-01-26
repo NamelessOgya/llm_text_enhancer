@@ -12,15 +12,20 @@ TASK_DEFINITION=$6
 EVOLUTION_METHOD=${7:-ga} # Default to ga
 ENSEMBLE_RATIOS=${8:-""}
 EVALUATOR_TYPE=${9:-llm}
+POPULATION_NAME=${10:-default}
 
 # Get absolute path to project root
 PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 PYTHONpath="$PROJECT_ROOT/src"
 
 # Define result dir relative to project root (Split by Logic AND Evaluator)
-RESULT_DIR="$PROJECT_ROOT/result/$EXPERIMENT_ID/$EVOLUTION_METHOD/$EVALUATOR_TYPE"
+# Added POPULATION_NAME to path
+RESULT_DIR="$PROJECT_ROOT/result/$EXPERIMENT_ID/$POPULATION_NAME/$EVOLUTION_METHOD/$EVALUATOR_TYPE"
 
-echo "Running Generation Step for $EXPERIMENT_ID ($EVOLUTION_METHOD) Iteration $ITERATION"
+# Define Initial Population Dir
+INITIAL_POP_DIR="$PROJECT_ROOT/result/$EXPERIMENT_ID/initial_population/$POPULATION_NAME"
+
+echo "Running Generation Step for $EXPERIMENT_ID ($EVOLUTION_METHOD) Iteration $ITERATION (Pop: $POPULATION_NAME)"
 
 export PYTHONPATH=$PYTHONpath
 python3 "$PROJECT_ROOT/src/generate.py" \
@@ -32,4 +37,5 @@ python3 "$PROJECT_ROOT/src/generate.py" \
     --task-definition "$TASK_DEFINITION" \
     --result-dir "$RESULT_DIR" \
     --evolution-method "$EVOLUTION_METHOD" \
-    --ensemble-ratios "$ENSEMBLE_RATIOS"
+    --ensemble-ratios "$ENSEMBLE_RATIOS" \
+    --initial-population-dir "$INITIAL_POP_DIR"

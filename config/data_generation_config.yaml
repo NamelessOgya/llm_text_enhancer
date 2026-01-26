@@ -17,4 +17,5 @@ datasets:
     source: "unkitech/perspectrum"
     split: "train"
     sample_size: 10
+    min_length: 13
     output_path: "data/perspectrum.csv"

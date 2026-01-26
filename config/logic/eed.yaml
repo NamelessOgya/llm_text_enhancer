@@ -1,0 +1,6 @@
+exploit_sample_num: 3
+diversity_sample_num: 2
+explore_sample_num: 5
+grad_temperature: 1.0
+sample_pass_rate: 2
+elite_sample_num: 1

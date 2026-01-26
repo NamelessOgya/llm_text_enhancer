@@ -7,6 +7,15 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import List, Dict, Tuple, Any
 
+try:
+    from sklearn.feature_extraction.text import CountVectorizer
+    from sklearn.metrics.pairwise import cosine_similarity
+except ImportError:
+    CountVectorizer = None
+    cosine_similarity = None
+
+import yaml
+
 from llm.interface import LLMInterface
 
 logger = logging.getLogger(__name__)
@@ -36,6 +45,31 @@ class EvolutionStrategy(ABC):
         """
         pass
 
+    def _get_task_constraint(self, context: Dict[str, Any]) -> str:
+        """
+        config/task/{task_name}.yaml から制約(max_words)を読み込み、
+        プロンプトに追加する制約文字列を返す。
+        """
+        task_name = context.get("task_name")
+        if not task_name:
+            return ""
+            
+        config_path = os.path.join(os.getcwd(), "config", "task", f"{task_name}.yaml")
+        if not os.path.exists(config_path):
+            return ""
+            
+        try:
+            with open(config_path, 'r') as f:
+                task_config = yaml.safe_load(f)
+                max_words = task_config.get("max_words")
+                if max_words:
+                    # User request: Unify to "words" for English tasks.
+                    return f"Constraint: The text must be strictly {max_words} words or less."
+        except:
+            pass
+            
+        return ""
+
     def generate_initial(self, llm: LLMInterface, k: int, task_def: str, context: Dict[str, Any] = None) -> List[Tuple[str, str]]:
         """
         初期世代(Generation 0)のテキスト個体群を生成する。
@@ -43,7 +77,10 @@ class EvolutionStrategy(ABC):
         """
         logger.info("Generating initial population (Texts) using Default Strategy...")
         
+        constraint = self._get_task_constraint(context)
         creation_prompt = f"""
+{constraint}
+
 Task Definition: "{task_def}"
 
 Goal: Generate {k} distinct, high-quality text outputs for the above task.
@@ -91,7 +128,8 @@ Example Output:
         # 数合わせ
         texts = texts[:k]
         while len(texts) < k:
-            single_prompt = f"Generate a high-quality text for the task: {task_def}\nOutput only the text."
+            constraint = self._get_task_constraint(context)
+            single_prompt = f"{constraint}\nGenerate a high-quality text for the task: {task_def}\nOutput only the text."
             single_text = llm.generate(single_prompt).strip()
             texts.append((single_text, single_prompt))
             
@@ -136,7 +174,10 @@ class GeneticAlgorithmStrategy(EvolutionStrategy):
             ]
             m_type = random.choice(mutation_types)
             
+            constraint = self._get_task_constraint(context)
             mutation_prompt = f"""
+{constraint}
+
 Your goal is to improve the following text for the task: "{task_def}".
 
 Original Text:
@@ -179,24 +220,31 @@ class TextGradStrategy(EvolutionStrategy):
             reason = target.get('reason', 'N/A')
             
             # Step 1: 勾配(改善提案)の生成
+            constraint = self._get_task_constraint(context)
             gradient_prompt = f"""
+{constraint}
+
 Task Definition: "{task_def}"
 
 Current Text:
 "{target_text}"
 
 Score: {score}
-Evaluator Logic/Reasoning: {reason}
 
 Goal: Critique the Current Text strictly. Identify specific weaknesses that prevent it from achieving a higher score.
 Provide a clear, actionable "Gradient" (instruction) on how to modify the text to improve it.
 
 Note: The score is on a scale of 0.0 to 1.0.
+
+Important: Any improvement suggestion MUST be achievable within the task constraints (e.g. word count).
 """
             gradient = llm.generate(gradient_prompt).strip()
             
             # Step 2: 勾配の適用 (Update)
+            constraint = self._get_task_constraint(context)
             update_prompt = f"""
+{constraint}
+
 Task Definition: "{task_def}"
 
 Current Text:
@@ -214,14 +262,7 @@ Output ONLY the rewritten text.
             
         return new_texts
 
-class TrajectoryStrategy(EvolutionStrategy):
-    """
-    3. Trajectory (Trajectory of Text Refinement)
-    
-    テキストの進化の軌跡(Trajectory)を利用する。
-    過去のテキストをスコアの低い順に並べて、「改善の流れ」をLLMに提示し、
-    「この流れに沿ってさらに良くなった次のバージョン」を生成させる。
-    """
+
     def _load_history(self, result_dir: str, current_iter: int) -> List[Tuple[str, float]]:
         """
         過去の全世代の実行結果をディスクから読み込むヘルパーメソッド。
@@ -254,6 +295,183 @@ class TrajectoryStrategy(EvolutionStrategy):
                 
         return history
 
+    def _sample_history_gumbel(self, history: List[Tuple[str, float]], k: int, weight: float) -> List[Tuple[str, float]]:
+        """
+        履歴から Gumbel-Max Trick を用いて重み付きサンプリングを行う。
+        score * weight をロジットとして使用。
+        """
+        if not history:
+            return []
+            
+        import numpy as np
+        
+        scores = [h[1] for h in history]
+        logits = np.array(scores) * weight
+        
+        # Gumbelノイズを加える
+        gumbel_noise = -np.log(-np.log(np.random.uniform(0, 1, len(history))))
+        perturbed_logits = logits + gumbel_noise
+        
+        # Top-k indices
+        top_k_indices = np.argsort(perturbed_logits)[-k:][::-1]
+        
+        selected = [history[i] for i in top_k_indices]
+        return selected
+
+class TextGradV2Strategy(EvolutionStrategy):
+    """
+    TextGrad v2: 過去の入力/スコア履歴をサンプリングして補足情報として加える。
+    """
+    def __init__(self):
+        self.config = self._load_config()
+
+    def _load_config(self) -> Dict[str, Any]:
+        config_path = os.path.join(os.getcwd(), "config", "logic", "textgradv2.yaml")
+        default_config = {
+            "ref_sampling_weight": 10.0,
+            "ref_sampling_num": 3
+        }
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, 'r') as f:
+                    user_config = yaml.safe_load(f)
+                    default_config.update(user_config)
+            except Exception as e:
+                logger.warning(f"Failed to load textgradv2.yaml: {e}")
+        return default_config
+
+    def _load_history(self, result_dir: str, current_iter: int) -> List[Tuple[str, float]]:
+         # TODO: Refactor to share this with TrajectoryStrategy or make it a Mixin
+         # For now, duplicate logic or import if possible. 
+         # Copy-pasting the logic from TrajectoryStrategy (or moving it to base class later)
+        history = []
+        for i in range(current_iter):
+            iter_dir = os.path.join(result_dir, f"iter{i}")
+            metrics_path = os.path.join(iter_dir, "metrics.json")
+            if not os.path.exists(metrics_path):
+                continue
+                
+            try:
+                with open(metrics_path, 'r') as f:
+                    metrics = json.load(f)
+                
+                # 対応するテキストファイルの読み込み
+                for m in metrics:
+                    try:
+                        file_name = m["file"]
+                        t_path = os.path.join(iter_dir, "texts", file_name)
+                        if os.path.exists(t_path):
+                            with open(t_path, 'r') as tf:
+                                t_text = tf.read().strip()
+                            history.append((t_text, m["score"]))
+                    except (IndexError, ValueError):
+                        continue
+            except Exception as e:
+                logger.warning(f"Failed to load history from iter{i}: {e}")
+        return history
+
+    def _sample_history_gumbel(self, history: List[Tuple[str, float]], k: int, weight: float) -> List[Tuple[str, float]]:
+        if not history: return []
+        import numpy as np
+        
+        scores = [h[1] for h in history]
+        logits = np.array(scores) * weight
+        gumbel_noise = -np.log(-np.log(np.random.uniform(0, 1, len(history))))
+        perturbed_logits = logits + gumbel_noise
+        top_k_indices = np.argsort(perturbed_logits)[-k:][::-1]
+        
+        return [history[i] for i in top_k_indices]
+
+    def evolve(self, llm: LLMInterface, population: List[Dict[str, Any]], k: int, task_def: str, context: Dict[str, Any]) -> List[Tuple[str, str]]:
+        logger.info("Evolving population using TextGrad V2 Strategy...")
+        
+        result_dir = context.get('result_dir')
+        current_iter = context.get('iteration', 1)
+        
+        # 1. Load History
+        history = self._load_history(result_dir, current_iter)
+        current_history = [(p['text'], p['score']) for p in population]
+        history.extend(current_history)
+        
+        # 2. Sample References
+        ref_num = self.config["ref_sampling_num"]
+        ref_weight = self.config["ref_sampling_weight"]
+        
+        # Elitism
+        sorted_pop = sorted(population, key=lambda x: x['score'], reverse=True)
+        best_individual = sorted_pop[0]
+        new_texts = [(best_individual['text'], "Elitism: Best individual preserved")]
+        
+        idx = 0
+        while len(new_texts) < k:
+            target = population[idx % len(population)]
+            idx += 1
+            
+            target_text = target['text']
+            score = target['score']
+            
+            # Sample History for this generation
+            references = self._sample_history_gumbel(history, ref_num, ref_weight)
+            ref_text = ""
+            for i, (txt, scr) in enumerate(references):
+                ref_text += f"- Ref {i+1} (Score: {scr}): {txt[:200]}...\n" # Truncate for prompt length
+            
+            # Step 1: Gradient
+            constraint = self._get_task_constraint(context)
+            gradient_prompt = f"""
+{constraint}
+
+Task Definition: "{task_def}"
+
+Current Text:
+"{target_text}"
+
+Score: {score}
+
+Reference Information (Past Attempts):
+{ref_text}
+
+Goal: Critique the Current Text. Use the Reference Information to identify what high-scoring texts have in common or what low-scoring texts missed.
+Provide a clear, actionable "Gradient" (instruction) on how to modify the text to improve it.
+
+Note: The score is on a scale of 0.0 to 1.0.
+
+Important: Any improvement suggestion MUST be achievable within the task constraints (e.g. word count).
+"""
+            gradient = llm.generate(gradient_prompt).strip()
+            
+            # Step 2: Update
+            constraint = self._get_task_constraint(context)
+            update_prompt = f"""
+{constraint}
+
+Task Definition: "{task_def}"
+
+Current Text:
+"{target_text}"
+
+Feedback (Gradient):
+{gradient}
+
+Directive:
+Rewrite the Current Text incorporating the feedback above to maximize the score.
+Output ONLY the rewritten text.
+"""
+            updated_text = llm.generate(update_prompt).strip()
+            new_texts.append((updated_text, f"TextGrad V2 Update:\nGradient: {gradient}\nMakePrompt: {update_prompt}"))
+            
+        return new_texts
+
+class TrajectoryStrategy(EvolutionStrategy):
+    """
+    3. Trajectory (Trajectory of Text Refinement)
+    
+    テキストの進化の軌跡(Trajectory)を利用する。
+    過去のテキストをスコアの低い順に並べて、「改善の流れ」をLLMに提示し、
+    「この流れに沿ってさらに良くなった次のバージョン」を生成させる。
+    """
+
+
     def evolve(self, llm: LLMInterface, population: List[Dict[str, Any]], k: int, task_def: str, context: Dict[str, Any]) -> List[Tuple[str, str]]:
         logger.info("Evolving population using Trajectory Strategy (Text Optimization)...")
         
@@ -282,7 +500,10 @@ class TrajectoryStrategy(EvolutionStrategy):
 
         new_texts = []
         while len(new_texts) < k:
+            constraint = self._get_task_constraint(context)
             meta_prompt = f"""
+{constraint}
+
 Task Definition: "{task_def}"
 
 I have a sequence of texts generated for this task, sorted by their quality score (low to high).
@@ -322,7 +543,10 @@ class DemonstrationStrategy(EvolutionStrategy):
             
         new_texts = []
         while len(new_texts) < k:
+            constraint = self._get_task_constraint(context)
             meta_prompt = f"""
+{constraint}
+
 Task Definition: "{task_def}"
 
 Here are some examples of high-quality texts generated for this task:
@@ -412,76 +636,7 @@ class HGStrategy(EvolutionStrategy):
             valid.append(h)
         return valid
 
-    def generate_initial(self, llm: LLMInterface, k: int, task_def: str, context: Dict[str, Any] = None) -> List[Tuple[str, str]]:
-        logger.info("Generating initial population using HG Strategy...")
-        
-        # p=1 (Baseline), others (Hypotheses)
-        p = 1
-        num_hypotheses = max(0, k - p)
-        
-        new_texts = []
-        
-        # 1. Baseline Generation
-        baseline_prompt = f"Generate a high-quality text for the task: {task_def}\nOutput only the text."
-        baseline_text = llm.generate(baseline_prompt).strip()
-        
-        # JSON Logic
-        baseline_logic = self._create_logic_json(baseline_prompt, "baseline", "N/A (Baseline)", "baseline")
-        new_texts.append((baseline_text, baseline_logic))
-        
-        if num_hypotheses > 0:
-            # 2. Hypothesis Generation
-            hyp_gen_prompt = f"""
-Task Definition: "{task_def}"
 
-Goal: Generate {num_hypotheses} distinct hypotheses (strategies) about how to write a text that achieves a high score for this task.
-Focus on structure, tone, length, or content strategy.
-
-CRITICAL:
-- The output must be an INSTRUCTION or STRATEGY, NOT an example of the text.
-- Do NOT generate the actual content (e.g. do not start with "SUPPORT:" or "OPPOSE:").
-- Address the "writer" of the text.
-
-Output ONLY a JSON list of strings.
-Example: ["Text should be concise.", "Include specific examples.", ...]
-"""
-            hyp_response = llm.generate(hyp_gen_prompt).strip()
-            # Parse JSON
-            try:
-                if hyp_response.startswith("```"):
-                    hyp_response = hyp_response.split("\n", 1)[1]
-                    if hyp_response.rfind("```") != -1:
-                        hyp_response = hyp_response[:hyp_response.rfind("```")]
-                hypotheses = json.loads(hyp_response)
-            except:
-                logger.warning("Failed to parse hypotheses JSON. Using default.")
-                hypotheses = [f"Hypothesis {i}" for i in range(num_hypotheses)]
-            
-            # Cleaning
-            hypotheses = self._clean_hypotheses(hypotheses)
-
-            # Ensure count
-            hypotheses = hypotheses[:num_hypotheses]
-            while len(hypotheses) < num_hypotheses:
-                hypotheses.append("The text should be clear and directly address the prompt.")
-                
-            # 3. Generate Texts from Hypotheses
-            for i, hyp in enumerate(hypotheses):
-                gen_prompt = f"""
-Task Definition: "{task_def}"
-
-Hypothesis: "{hyp}"
-
-Directive:
-Generate a text based strictly on the above hypothesis.
-Output ONLY the text.
-"""
-                text = llm.generate(gen_prompt).strip()
-                hid = str(uuid.uuid4())[:8]
-                logic = self._create_logic_json(gen_prompt, hid, hyp, "exploration_init")
-                new_texts.append((text, logic))
-                
-        return new_texts
 
     def _update_knowledge(self, knowledge_path: str, valid_hypotheses: List[Dict]) -> List[Dict]:
         knowledge = []
@@ -623,7 +778,10 @@ Output JSON list of strings.
             new_texts.append((best['text'], logic))
             
         # 4.2 Theoretical Best
+        constraint = self._get_task_constraint(context)
         theo_prompt = f"""
+{constraint}
+
 Task: "{task_def}"
 
 Knowledge:
@@ -639,13 +797,15 @@ Output ONLY the text.
         
         # 4.3 Exploratory
         for hyp in new_hypotheses_exploratory[:t]:
-             p_text = f"Generate text based on hypothesis: {hyp}"
+             constraint = self._get_task_constraint(context)
+             p_text = f"{constraint}\nGenerate text based on hypothesis: {hyp}"
              gen = llm.generate(f"{p_text}\nOutput only text.").strip()
              new_texts.append((gen, self._create_logic_json(p_text, str(uuid.uuid4())[:8], hyp, "exploration")))
 
         # 4.4 Exploitative
         for hyp in new_hypotheses_exploitative[:exploit_count]:
-             p_text = f"Generate text based on hypothesis: {hyp}"
+             constraint = self._get_task_constraint(context)
+             p_text = f"{constraint}\nGenerate text based on hypothesis: {hyp}"
              gen = llm.generate(f"{p_text}\nOutput only text.").strip()
              new_texts.append((gen, self._create_logic_json(p_text, str(uuid.uuid4())[:8], hyp, "exploitation")))
              
@@ -815,7 +975,10 @@ Output JSON list of strings.
                 hypotheses.append("Explore a unique perspective not yet covered.")
             
             for hyp in hypotheses[:t]:
+                constraint = self._get_task_constraint(context)
                 gen_prompt = f"""
+{constraint}
+
 Task: "{task_def}"
 Hypothesis: "{hyp}"
 
@@ -848,10 +1011,15 @@ Target Text:
 
 Goal: Improve the Target Text.
 Using the insights from the Previous Generation Results (what works vs what fails), provide a Gradient (instruction) to optimize the Target Text.
+
+Note: The score is on a scale of 0.0 to 1.0.
 """
                 gradient = llm.generate(grad_prompt).strip()
                 
+                constraint = self._get_task_constraint(context)
                 update_prompt = f"""
+{constraint}
+
 Task: "{task_def}"
 Original Text: "{target['text']}"
 Feedback: {gradient}
@@ -865,6 +1033,466 @@ Directive: Rewrite the text to maximize score. Output only text.
         return new_texts[:k]
 
 
+class EEDStrategy(EvolutionStrategy):
+    """
+    8. EED (Expert-driven Evolution and Diagnosis)
+    
+    Exploit, Diversity, Explore の3つのフェーズを組み合わせて進化させる。
+    Config: config/logic/eed.yaml
+    """
+    def __init__(self):
+        self.config = self._load_config()
+
+    def _load_config(self) -> Dict[str, Any]:
+        config_path = os.path.join(os.getcwd(), "config", "logic", "eed.yaml")
+        default_config = {
+            "exploit_sample_num": 6,
+            "diversity_sample_num": 2,
+            "explore_sample_num": 2,
+            "grad_temperature": 1.0,
+            "sample_pass_rate": 3,
+            "elite_sample_num": 1
+        }
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, 'r') as f:
+                    user_config = yaml.safe_load(f)
+                    default_config.update(user_config)
+            except Exception as e:
+                logger.warning(f"Failed to load eed.yaml: {e}")
+        return default_config
+
+    def _calculate_novelty(self, candidates: List[str], distinct_set: List[str]) -> List[float]:
+        """
+        Novelty(x, K) = 1 - max_{k in K}(similarity(x, k))
+        similarity: 3-gram cosine similarity
+        """
+        if not distinct_set or not candidates or CountVectorizer is None:
+            return [1.0] * len(candidates)
+
+        all_texts = candidates + distinct_set
+        vectorizer = CountVectorizer(analyzer='char', ngram_range=(3, 3))
+        try:
+            tfidf_matrix = vectorizer.fit_transform(all_texts)
+            candidate_vectors = tfidf_matrix[:len(candidates)]
+            set_vectors = tfidf_matrix[len(candidates):]
+            
+            similarities = cosine_similarity(candidate_vectors, set_vectors)
+            # similarities shape: (len(candidates), len(distinct_set))
+            
+            max_similarities = similarities.max(axis=1) # Max sim for each candidate
+            novelty_scores = 1.0 - max_similarities
+            return novelty_scores.tolist()
+            
+        except ValueError:
+            # Empty vocabulary or other issue
+            return [0.0] * len(candidates)
+
+    def _create_logic_json(self, meta_prompt: str, strategy_type: str, source: str) -> str:
+        data = {
+            "meta_prompt": meta_prompt,
+            "type": strategy_type,
+            "source": source
+        }
+        return json.dumps(data, ensure_ascii=False)
+
+    def evolve(self, llm: LLMInterface, population: List[Dict[str, Any]], k: int, task_def: str, context: Dict[str, Any]) -> List[Tuple[str, str]]:
+        logger.info("Evolving population using EED Strategy...")
+        
+        # Load Config
+        exploit_num = self.config["exploit_sample_num"]
+        diversity_num = self.config["diversity_sample_num"]
+        explore_num = self.config["explore_sample_num"]
+        grad_temp = self.config["grad_temperature"]
+        pass_rate = self.config["sample_pass_rate"]
+        elite_num = self.config.get("elite_sample_num", 1)
+        
+        # Adjust k if config sums don't match (Prioritize config ratios, but fit to k)
+        total_config = exploit_num + diversity_num + explore_num
+        if k != total_config:
+             logger.warning(f"Population size {k} != Config Sum {total_config}. Scaling config.")
+             ratio_ex = exploit_num / total_config
+             ratio_div = diversity_num / total_config
+             
+             exploit_num = int(k * ratio_ex)
+             diversity_num = int(k * ratio_div)
+             explore_num = k - exploit_num - diversity_num
+
+        sorted_pop = sorted(population, key=lambda x: x['score'], reverse=True)
+        
+        new_texts = [] # List[Tuple[text, logic]]
+
+        # --- 0. Elitism ---
+        # Explicitly preserve top elite_num individuals
+        for i in range(min(elite_num, len(sorted_pop))):
+            elite = sorted_pop[i]
+            new_texts.append((elite['text'], f"Elitism: Rank {i+1} preserved (Score: {elite['score']})"))
+        
+        # Adjust exploit_num to account for elites
+        # We reduce the *newly generated* exploit samples so that Total = k
+        # Actually, we should just fill up to exploit_num + elite_num?
+        # Let's subtract from exploit_num primarily.
+        exploit_num = max(0, exploit_num - len(new_texts)) 
+        
+
+        # Instantiate TextGradV2 for usage
+        tgv2 = TextGradV2Strategy()
+        
+        # --- 1. Exploit Phase (Modified to use TextGrad V2) ---
+        # Top 3 parents -> Generate variations
+        parents_exploit = sorted_pop[:3]
+
+        # Load History once for Efficiency
+        history = tgv2._load_history(result_dir=context.get('result_dir'), current_iter=context.get('iteration', 1))
+        current_history = [(p['text'], p['score']) for p in population]
+        history.extend(current_history)
+        
+        for parent in parents_exploit:
+            # Generate 2 variations per parent
+            for i in range(2):
+                
+                # Sample references for V2
+                references = tgv2._sample_history_gumbel(history, tgv2.config["ref_sampling_num"], tgv2.config["ref_sampling_weight"])
+                ref_text = ""
+                for ii, (txt, scr) in enumerate(references):
+                    ref_text += f"- Ref {ii+1} (Score: {scr}): {txt[:200]}...\n"
+
+                grad_prompt = f"""
+{self._get_task_constraint(context)}
+
+Task Definition: "{task_def}"
+
+Current Text:
+"{parent['text']}"
+
+Score: {parent['score']}
+
+Reference Information (Past Attempts):
+{ref_text}
+
+Goal: Critique the Current Text strictly. Identify specific weaknesses that prevent it from achieving a higher score.
+Provide a clear, actionable "Gradient" (instruction) on how to modify the text to improve it.
+
+Note: The score is on a scale of 0.0 to 1.0.
+
+Important: Any improvement suggestion MUST be achievable within the task constraints (e.g. word count).
+"""
+                gradient = llm.generate(grad_prompt).strip()
+                
+                constraint = self._get_task_constraint(context)
+                update_prompt = f"""
+{constraint}
+
+Task Definition: "{task_def}"
+
+Current Text:
+"{parent['text']}"
+
+Feedback (Gradient) for Improvement:
+{gradient}
+
+Directive:
+Rewrite the Current Text incorporating the feedback above to maximize the score.
+Output ONLY the rewritten text.
+"""
+                text = llm.generate(update_prompt).strip()
+                logic = self._create_logic_json(update_prompt, "eed_exploit_v2", f"Parent Score:{parent['score']}")
+                new_texts.append((text, logic))
+                
+                if len(new_texts) >= exploit_num: break
+            if len(new_texts) >= exploit_num: break
+            
+        # Fill if short
+        while len(new_texts) < exploit_num:
+             if new_texts:
+                new_texts.append(new_texts[0]) # Duplicate best
+             else:
+                new_texts.append(("Fallback", self._create_logic_json("N/A", "fallback", "error")))
+
+        exploit_texts_only = [t[0] for t in new_texts]
+
+        # --- 2. Diversity Phase (Novelty Refinement) ---
+        # Instead of mutating elites, we find the "rough diamonds" (novel but potentially low score) 
+        # from the population and refine them using TextGrad.
+        
+        # Step 1: Identify the "Dominant Norm" (Top 1 Text)
+        dominant_text = sorted_pop[0]['text']
+
+        # Step 2: Select the "Most Novel" candidates
+        # We look at the lower half or non-elites to find something distinct.
+        # Let's consider candidates from rank 2 onwards to avoid just picking the runner-up.
+        candidates = sorted_pop[1:]
+        
+        diversity_new_texts = []
+        
+        if candidates and diversity_num > 0:
+            # Format candidates for LLM selection
+            cand_str = ""
+            for i, c in enumerate(candidates):
+                cand_str += f"Candidate {i}: \"{c['text'][:200]}...\"\n"
+
+            # Select N distinct candidates (iteratively or batch? Batch is easier for now)
+            # Actually, let's select iteratively to ensure we pick distinct ones.
+            # For simplicity in this implementation, we pick the Top-K distinct ones based on LLM judgement.
+            
+            novelty_prompt = f"""
+Task Definition: "{task_def}"
+
+Dominant Perspective (Highest Score):
+"{dominant_text}"
+
+Candidate Perspectives:
+{cand_str}
+
+Goal: We want to diversify the gene pool.
+Identify the top {diversity_num} candidates that represent the MOST DISTINCT perspectives compared to the Dominant Perspective.
+We are looking for "Hidden Gems" - arguments that are semantically different, even if their current phrasing is imperfect.
+
+Output ONLY the indices of the selected candidates (e.g. "0, 3").
+"""
+            novelty_indices_str = llm.generate(novelty_prompt).strip()
+            
+            # Parse indices
+            selected_indices = []
+            try:
+                import re
+                nums = re.findall(r'\d+', novelty_indices_str)
+                selected_indices = [int(n) for n in nums[:diversity_num]]
+            except:
+                pass
+                
+            # Fallback if selection failed
+            if not selected_indices:
+                selected_indices = list(range(min(len(candidates), diversity_num)))
+
+            selected_candidates = [candidates[i] for i in selected_indices if i < len(candidates)]
+
+            # Step 3: Apply TextGrad Refinement to selected candidates
+            for parent in selected_candidates:
+                # TextGrad Logic (Same as Exploit, but with "Preserve Perspective" instruction)
+                
+                # Sample references (optional, but good for context)
+                history = tgv2._load_history(result_dir=context.get('result_dir'), current_iter=context.get('iteration', 1))
+                references = tgv2._sample_history_gumbel(history, tgv2.config["ref_sampling_num"], tgv2.config["ref_sampling_weight"])
+                ref_text = ""
+                for ii, (txt, scr) in enumerate(references):
+                    ref_text += f"- Ref {ii+1} (Score: {scr}): {txt[:200]}...\n"
+
+                grad_prompt = f"""
+{self._get_task_constraint(context)}
+
+Task Definition: "{task_def}"
+
+Current Text (Selected for Novelty):
+"{parent['text']}"
+
+Dominant Perspective (For Context - DO NOT COPY):
+"{dominant_text}"
+
+Score: {parent['score']}
+
+Goal: Improving this text's persuasiveness and clarity while MAINTAINING its unique perspective.
+The goal is NOT to make it look like the Dominant Perspective. The goal is to make THIS specific argument as strong as possible.
+
+Critique the text and provide a specific instruction (Gradient) to improve it.
+"""
+                gradient = llm.generate(grad_prompt).strip()
+                
+                constraint = self._get_task_constraint(context)
+                update_prompt = f"""
+{constraint}
+
+Task Definition: "{task_def}"
+
+Original Text:
+"{parent['text']}"
+
+Improvement Instruction:
+{gradient}
+
+Directive:
+Rewrite the text to improve it based on the instruction.
+Ensure you KEEP the original unique angle/argument, just make it better.
+Output ONLY the rewritten text.
+"""
+                text = llm.generate(update_prompt).strip()
+                logic = self._create_logic_json(update_prompt, "eed_novelty_refining", f"Refining Novelty (Parent Score:{parent['score']})")
+                diversity_new_texts.append((text, logic))
+
+        new_texts.extend(diversity_new_texts)
+        
+        # --- 3. Explore Phase ---
+        # Top half samples -> Verbalize "Norm"
+        top_half = sorted_pop[:len(sorted_pop)//2]
+        top_texts = "\n".join([f"- {p['text'][:100]}..." for p in top_half])
+        
+        norm_prompt = f"""
+Task: "{task_def}"
+
+High Scoring Texts (Excerpt):
+{top_texts}
+
+Goal: Analyze these texts to identify the successful pattern.
+1. Identify the "Common Stance" (e.g. SUPPORT or OPPOSE).
+2. Summarize the "Core Arguments" used in these texts (what specific reasons are given?).
+
+Output format:
+Common Stance: [Stance]
+Core Arguments:
+- [Argument 1]
+- [Argument 2]
+...
+"""
+        norms = llm.generate(norm_prompt).strip()
+        
+        # Logic to save/load explored arguments
+        def _get_knowledge_path(context):
+            res_dir = context.get('result_dir')
+            if res_dir:
+                 return os.path.join(res_dir, "eed_knowledge.json")
+            return None
+
+        def _load_knowledge(path):
+            if path and os.path.exists(path):
+                try:
+                    with open(path, 'r') as f:
+                        return json.load(f)
+                except: pass
+            return {"explored_arguments": []}
+
+        def _save_knowledge(path, data):
+            if path:
+                try:
+                    with open(path, 'w') as f:
+                        json.dump(data, f, indent=4, ensure_ascii=False)
+                except: pass
+
+        # Parse norms to extract arguments & stance
+        # We expect "Core Arguments:" followed by bullet points
+        current_args = []
+        common_stance = "Unknown"
+        try:
+            if "Common Stance:" in norms:
+                common_stance = norms.split("Common Stance:", 1)[1].split('\n')[0].strip()
+
+            if "Core Arguments:" in norms:
+                section = norms.split("Core Arguments:", 1)[1]
+                lines = section.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if line.startswith("- ") or line.startswith("* "):
+                        current_args.append(line[2:])
+        except: pass
+
+        # Load & Update Knowledge
+        k_path = _get_knowledge_path(context)
+        knowledge_data = _load_knowledge(k_path)
+        existing_args = knowledge_data.get("explored_arguments", [])
+        
+        # Add new ones (simple dedup)
+        for arg in current_args:
+            if arg not in existing_args:
+                existing_args.append(arg)
+        
+        knowledge_data["explored_arguments"] = existing_args
+        _save_knowledge(k_path, knowledge_data)
+        
+        # Format for prompt
+        avoid_list_str = "\n".join([f"- {a}" for a in existing_args])
+
+        # Stakeholder/Persona Injection
+        persona_prompt = f"""
+Explored Arguments (Safety/Security risks mostly):
+{avoid_list_str}
+
+Task: "{task_def}"
+Common Stance: {common_stance}
+
+Goal: Identify 5 distinct ARGUMENTS that support the Common Stance but have NOT been mentioned in the Explored Arguments list.
+We want to find "Undiscussed Arguments" (e.g. Economic impact, Historical precedent, Ethical rights, Long-term sociological effects).
+Avoid repeating the Safety/Security risks if they are already well explored.
+
+Output ONLY a JSON list of strings, e.g. ["Economic cost of maintenance", "Sovereign rights of smaller nations", ...].
+"""
+        arguments_text = llm.generate(persona_prompt).strip()
+        
+        # Parse arguments
+        target_arguments = []
+        try:
+            import re
+            json_match = re.search(r'\[.*\]', arguments_text, re.DOTALL)
+            if json_match:
+                target_arguments = json.loads(json_match.group(0))
+            else:
+                 # Fallback regex parsing
+                 lines = arguments_text.split('\n')
+                 for line in lines:
+                      clean = re.sub(r'^[\d\-\*\.]+\s*', '', line).strip()
+                      if clean and len(clean) < 100: # Arguments can be slightly longer than personas
+                           target_arguments.append(clean)
+        except: 
+            target_arguments = ["Ethical implication", "Economic aspect", "Historical context"] # Default fallback
+
+        if not target_arguments:
+             target_arguments = ["New Perspective"]
+
+        # Generate explore_sample_num * sample_pass_rate candidates
+        explore_candidates = []
+        gen_count = explore_num * pass_rate
+        
+        for i in range(gen_count):
+             # Round-robin assignment of arguments
+             target_argument = target_arguments[i % len(target_arguments)]
+             
+             constraint = self._get_task_constraint(context)
+             gen_prompt = f"""
+{constraint}
+
+Task: "{task_def}"
+
+Target Argument: "{target_argument}"
+Common Stance: {common_stance}
+
+Requirement:
+1. Write a text supporting the "Common Stance" specifically focusing on the "Target Argument".
+2. Develop this specific argument clearly and persuasively.
+
+Goal: Create a high-quality text that introduces this specific angle ({target_argument}) to the population.
+CRITICAL: Output ONLY the text content.
+"""
+             text = llm.generate(gen_prompt).strip()
+             logic = self._create_logic_json(gen_prompt, "eed_explore_argument", f"Argument: {target_argument}")
+             explore_candidates.append((text, logic))
+             
+        # Selection (Iterative Novelty against Exploit + Diversity)
+        # current_set already has Exploit + Diversity
+        selected_explore = []
+        current_set = [t[0] for t in new_texts]
+        
+        for _ in range(explore_num):
+             if not explore_candidates: break
+             
+             cand_texts = [c[0] for c in explore_candidates]
+             novelties = self._calculate_novelty(cand_texts, current_set)
+             
+             best_idx = novelties.index(max(novelties))
+             selected = explore_candidates.pop(best_idx)
+             
+             selected_explore.append(selected)
+             current_set.append(selected[0])
+             
+        new_texts.extend(selected_explore)
+        
+        # Final Fill
+        while len(new_texts) < k:
+             if new_texts:
+                new_texts.append(new_texts[0])
+             else:
+                new_texts.append(("Fallback", self._create_logic_json("N/A", "fallback", "error")))
+
+        return new_texts[:k]
+
+
 def get_evolution_strategy(strategy_type: str) -> EvolutionStrategy:
     """
     ストラテジーファクトリ関数。
@@ -872,11 +1500,13 @@ def get_evolution_strategy(strategy_type: str) -> EvolutionStrategy:
     strategies = {
         "ga": GeneticAlgorithmStrategy(),
         "textgrad": TextGradStrategy(),
+        "textgradv2": TextGradV2Strategy(),
         "trajectory": TrajectoryStrategy(),
         "demonstration": DemonstrationStrategy(),
         "ensemble": EnsembleStrategy(),
         "hg": HGStrategy(),
         "he": HEStrategy(),
+        "eed": EEDStrategy(),
     }
     
     if strategy_type not in strategies:

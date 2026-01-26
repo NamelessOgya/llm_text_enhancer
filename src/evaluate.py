@@ -101,11 +101,12 @@ def main():
     parser.add_argument("--evaluator-type", default="llm", help="llm, rule_keyword, rule_regex, rule_meteor")
     parser.add_argument("--target-preference", required=True)
     parser.add_argument("--evolution-method", default="ga") # ディレクトリ特定のため必要
+    parser.add_argument("--population-name", default="default")
     args = parser.parse_args()
 
-    # 親ディレクトリ: result/exp/method/evaluator
+    # 親ディレクトリ: result/exp/pop/method/evaluator
     # この下の row_* を全て処理する
-    base_result_dir = os.path.join("result", args.experiment_id, args.evolution_method, args.evaluator_type)
+    base_result_dir = os.path.join("result", args.experiment_id, args.population_name, args.evolution_method, args.evaluator_type)
     
     # row_* ディレクトリを検索
     row_dirs = glob.glob(os.path.join(base_result_dir, "row_*"))

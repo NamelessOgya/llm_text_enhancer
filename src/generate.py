@@ -34,6 +34,7 @@ def main():
     parser.add_argument("--result-dir", required=True, help="結果出力ディレクトリ (親ディレクトリ: result/exp/method)")
     parser.add_argument("--evolution-method", default="ga", help="進化手法")
     parser.add_argument("--ensemble-ratios", help="アンサンブル比率")
+    parser.add_argument("--initial-population-dir", help="初期集団をロードするディレクトリ")
     args = parser.parse_args()
 
     # タスク定義のロードとデータセット参照解析
@@ -135,11 +136,65 @@ def main():
         # --- 生成/進化フェーズ ---
         generated_outputs = [] # List[Tuple[text, logic]]
 
+        # Context creation moved up for generate_initial
+        context = {
+            "result_dir": os.path.join(args.result_dir, row_dir_name),
+            "iteration": args.iteration
+        }
+
+        # Extract task name from task definition filename for config lookup
+        try:
+            task_def_basename = os.path.basename(args.task_definition)
+            if task_def_basename.startswith("task_") and task_def_basename.endswith(".taml"):
+                task_name = task_def_basename[5:-5]
+                context["task_name"] = task_name
+        except: pass
+
         if args.iteration == 0:
-            # 初期生成: Strategyに委譲 (Iter 0 用のロジック実行)
-            # HGStrategyなどが独自の初期化を行う場合に対応
-            strategy = get_evolution_strategy(args.evolution_method)
-            generated_outputs = strategy.generate_initial(llm, args.population_size, current_task_def, context=None)
+            # 初期生成: 共有ディレクトリからのロードを試みる
+            loaded_from_shared = False
+            if args.initial_population_dir:
+                shared_row_dir = os.path.join(args.initial_population_dir, row_dir_name)
+                if os.path.exists(shared_row_dir):
+                    try:
+                        logger.info(f"Loading initial population from {shared_row_dir}")
+                        # Load texts and logic
+                        # Expected format: texts/text_i.txt, logic/prompt_i.txt
+                        shared_texts_dir = os.path.join(shared_row_dir, "texts")
+                        shared_logic_dir = os.path.join(shared_row_dir, "logic")
+                        
+                        text_files = glob.glob(os.path.join(shared_texts_dir, "text_*.txt"))
+                        # Sort by index to maintain order if possible
+                        text_files.sort(key=lambda x: int(os.path.basename(x).split('_')[1].split('.')[0]))
+                        
+                        for tf in text_files:
+                            basename = os.path.basename(tf) # text_0.txt
+                            idx = basename.split('_')[1].split('.')[0]
+                            with open(tf, 'r') as f:
+                                txt_content = f.read()
+                            
+                            logic_content = "Loaded from initial population"
+                            logic_file = os.path.join(shared_logic_dir, f"prompt_{idx}.txt")
+                            if os.path.exists(logic_file):
+                                with open(logic_file, 'r') as lf:
+                                    logic_content = lf.read()
+                            
+                            generated_outputs.append((txt_content, logic_content))
+                        
+                        if generated_outputs:
+                            loaded_from_shared = True
+                            # Truncate if larger than k (though unlikely if generated with same k)
+                            if len(generated_outputs) > args.population_size:
+                                generated_outputs = generated_outputs[:args.population_size]
+                    except Exception as e:
+                        logger.error(f"Failed to load initial population: {e}. Falling back to generation.")
+                        generated_outputs = []
+
+            if not loaded_from_shared:
+                # Strategyに委譲 (Iter 0 用のロジック実行)
+                strategy = get_evolution_strategy(args.evolution_method)
+                generated_outputs = strategy.generate_initial(llm, args.population_size, current_task_def, context=context)
+
         else:
             # 進化: 前世代のテキストを変異/改善
             # 前イテレーションのディレクトリ: [result_dir]/row_[idx]/iter[N-1]
@@ -169,14 +224,7 @@ def main():
                     
                     # Logic (Meta-Prompt / JSON) の読み込み
                     # filename は text_N.txt なので logic/creation_prompt_N.txt を推測
-                    # もしくは prompt_N.txt ? generate_pipeline的には creation_prompt を保存している
-                    # 前世代の保存ロジック:
-                    # 1. prompts_dir/prompt_{i}.txt
-                    # 2. logic_dir/creation_prompt_{i}.txt
-                    # text_file = text_{i}.txt
-                    
                     try:
-                        # Extract index from filename "text_X.txt"
                         idx_str = file_name.replace("text_", "").replace(".txt", "")
                         logic_path = os.path.join(prev_iter_dir, "logic", f"creation_prompt_{idx_str}.txt")
                         if os.path.exists(logic_path):
@@ -190,15 +238,11 @@ def main():
             if not population:
                 logger.warning(f"No valid population found in {prev_iter_dir}. Using initial generation fallback.")
                 strategy = get_evolution_strategy(args.evolution_method)
-                generated_outputs = strategy.generate_initial(llm, args.population_size, current_task_def, context=None)
+                generated_outputs = strategy.generate_initial(llm, args.population_size, current_task_def, context=context)
             else:
                 strategy = get_evolution_strategy(args.evolution_method)
-                context = {
-                    "result_dir": os.path.join(args.result_dir, row_dir_name), # Strategy内で過去履歴を読むためrowディレクトリを渡す
-                    "iteration": args.iteration
-                }
+                
                 if args.evolution_method == "ensemble" and args.ensemble_ratios:
-                     # アンサンブル比率のパース (簡易実装)
                      try:
                         ratios = {}
                         for item in args.ensemble_ratios.split(','):
