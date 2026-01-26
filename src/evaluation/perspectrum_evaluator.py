@@ -103,17 +103,35 @@ class PerspectrumRuleEvaluator(Evaluator):
 class PerspectrumLLMEvaluator(Evaluator):
     """
     LLM-as-a-judge for Perspectrum.
-    Evaluates semantic closeness of argument.
+    Evaluates:
+    1. Rule-based Constraints (Hard Filter -> 0.0):
+       - Stance Mismatch
+       - Word Count Violation
+    2. Logical Basis Match (LLM -> 0.0 - 1.0):
+       - Precision/Recall of logical points (Evidence).
+       - Ignoring style/ambiguity.
     """
-    def __init__(self, llm: LLMInterface):
+    def __init__(self, llm: LLMInterface, config_path: str = "config/task/perspectrum.yaml"):
         self.llm = llm
+        self.max_words = 50 # Default
+        
+        # Reuse parsing logic from RuleEvaluator
+        # We can instantiate it or copy logic. Instantiating is cleaner if we want to share config loading.
+        # But PerspectrumRuleEvaluator takes config_path.
+        self._rule_checker = PerspectrumRuleEvaluator(config_path)
+        self.max_words = self._rule_checker.max_words
 
     def evaluate(self, text: str, target: str) -> Tuple[float, str]:
-        # target in evaluate() usually comes from `target_preference` argument or dataset reference.
-        # In this task, target is effectively the "User's Reference Perspective"
-        
+        # 1. Rule-based Pre-check
+        # We use the rule evaluator's helper or logic
+        score, reason = self._check_rules(text, target)
+        if score == 0.0 and reason != "":
+             return 0.0, reason
+
+        # 2. LLM Evaluation (Logical Basis Match)
         prompt = f"""
-You are an objective judge evaluating how well a generated perspective matches a reference perspective.
+You are an objective "Logical Consistency Checker".
+Your task is to determine if the Generated Perspective uses the **exact same logical basis and set of evidence** as the Reference Perspective.
 
 Reference Perspective:
 "{target}"
@@ -121,35 +139,52 @@ Reference Perspective:
 Generated Perspective:
 "{text}"
 
-Task:
-Compare the Generated Perspective against the Reference Perspective.
-Determine if the Generated Perspective shares the same core argument and stance as the Reference Perspective.
+Evaluation Task:
+1. Extract the set of logical points/evidence used in the Reference.
+2. Extract the set of logical points/evidence used in the Generated Perspective.
+3. Compare the two sets.
 
-Evaluation Criteria:
-1. **Stance Match**: Must strictly match the reference stance (SUPPORT vs OPPOSE).
-2. **Key Points Coverage**: The generated text must cover the main logical points present in the reference.
-3. **No Added Claims**: The generated text must NOT contain new arguments or claims that are absent in the reference (hallucinations/extra info).
-4. **Semantic Accuracy**: Focus on meaning, not just word overlap.
+Strict Criteria:
+- **High Scores (8-10)**: The set of logical points matches. Differentiate based on **Nuance** and **Granularity**.
+- **Mid/Low Scores (1-7)**: Differentiate based on **Missing** or **Extra** logical points (Evidence recall/precision).
+- **IGNORE**: Fluency or writing style (unless it obscures logic).
 
-Scoring Scale (1-5):
-1: **Stance Mismatch / Irrelevant**. The text opposes the reference or argues about a completely different topic.
-2: **Weak Match**. Stance matches, but misses the core argument or consists mostly of irrelevant info.
-3: **Partial Match**. Captures part of the core argument but misses key nuance OR includes significant extra claims/noise not in reference.
-4: **Good Match**. Captures the main argument well. May miss minor details or have very slight extra info.
-5: **Perfect Match**. Perfectly captures the core argument and nuance of the reference. Contains NO extra/unsupported claims.
+Scoring Scale (1-10):
+(Note: Minimum score for a valid text is 1. Score 0 is reserved for rule violations.)
+
+**High Tier (Logically Correct)**:
+- 10: **Perfect Match**. Evidence, Granularity (level of detail), and Nuance (tone/emphasis) are identical to the reference.
+- 9: **Near Perfect**. Evidence is identical. Slight difference in **Nuance** (e.g. stronger/weaker emphasis) or **Granularity** (very slightly more/less detailed).
+- 8: **Excellent**. Evidence is identical. Clear difference in **Granularity** (e.g. reference is specific vs generated is abstract, or vice versa).
+
+**Mid Tier (Minor Logical Issues)**:
+- 7: **Good**. Main points match. Contains one **minor extra point** (harmless context/noise) or misses one **minor detail**.
+- 6: **Fair**. Main points match. Contains **clear extra points** (distracting) or misses a **secondary logical point**.
+- 5: **Mediocre**. Partial match (~50%). Mix of correct points and unrelated points/interpretations.
+
+**Low Tier (Major Logical Issues)**:
+- 4: **Weak**. Misses the **Core Argument** (matches only side points). Or dominated by unrelated arguments.
+- 3: **Poor**. Stance matches, but the argument is largely unrelated to the reference.
+- 2: **Very Poor**. Stance matches, but no logical connection to reference found.
+- 1: **Mismatch**. Passed rule checks but logic is effectively completely different.
 
 Output Format:
-First, provide a step-by-step "Review" comparing the two texts based on the criteria.
-Then, output the final "score" (1-5) and a short "reason".
+1. "Reference Points": [List of points]
+2. "Generated Points": [List of points]
+3. "Analysis": Compare Evidence, then Nuance/Granularity.
+4. "Final Score": 1-10 integer.
+5. "Reason": Concise summary.
 
 Output JSON format:
 {{
-    "review": "<detailed comparison>",
-    "score": <int 1-5>,
-    "reason": "<short summary>"
+    "reference_points": [...],
+    "generated_points": [...],
+    "analysis": "<string>",
+    "score": <int 1-10>,
+    "reason": "<string>"
 }}
 """
-        response = self.llm.generate(prompt)
+        response = self.llm.generate(prompt, temperature=0.0)
         try:
             import json
             cleaned = response.strip()
@@ -158,21 +193,44 @@ Output JSON format:
                 if cleaned.rfind("```") != -1:
                     cleaned = cleaned[:cleaned.rfind("```")]
             data = json.loads(cleaned)
-            data = json.loads(cleaned)
-            raw_score = float(data.get("score", 0.0))
-            # Normalize 1-5 scale to 0.0-1.0
-            # 1->0.0, 2->0.25, 3->0.5, 4->0.75, 5->1.0 ? 
-            # Or simply raw_score / 5.0? 
-            # Let's map 1 (lowest valid) to significantly low, but 0 is usually reserved for failure/mismatch.
-            # If 1 is "Stance Mismatch", it should probably be 0.0.
-            if raw_score <= 1.0:
-                normalized_score = 0.0
-            else:
-                # Map 2..5 to 0.25..1.0
-                # (x - 1) / 4
-                normalized_score = (raw_score - 1) / 4.0
             
-            return normalized_score, data.get("reason", "")
+            raw_score = float(data.get("score", 1.0))
+            
+            # Clamp to min 1.0 just in case LLM hallucinates 0
+            if raw_score < 1.0:
+                raw_score = 1.0
+            
+            # Normalize 1-10 to 0.1-1.0
+            normalized_score = raw_score / 10.0
+            
+            reason = data.get("reason", "")
+            
+            return normalized_score, reason
+
         except Exception as e:
-            logger.warning(f"PerspectrumLLMEvaluator parse failed: {e}", exc_info=True)
-            return 0.0, f"[EXCEPTION HANDLED] Parse Error: {e}"
+            logger.warning(f"PerspectrumLLMEvaluator LLM parse failed: {e}", exc_info=True)
+            return 0.0, f"[Exception] LLM Parse Error: {e}"
+
+    def _check_rules(self, text: str, target: str) -> Tuple[float, str]:
+        """
+        Reuse PerspectrumRuleEvaluator logic for parsing and constraints.
+        Returns (1.0, "") if pass, (0.0, reason) if fail.
+        """
+        # Parse
+        c_stance, c_reason = self._rule_checker._parse_stance_reason(text)
+        r_stance, r_reason = self._rule_checker._parse_stance_reason(target)
+        
+        if not c_stance:
+            return 0.0, "Invalid format (No STANCE: prefix)"
+        
+        # Check Stance
+        # If reference has no stance, we skip strict stance check (or assume support? strict match usually requires ref to have stance)
+        if r_stance and c_stance != r_stance:
+            return 0.0, f"Stance mismatch. Expected {r_stance}, got {c_stance}."
+            
+        # Check Word Count
+        word_count = len(c_reason.split())
+        if word_count > self.max_words:
+             return 0.0, f"Word count limit exceeded. {word_count} > {self.max_words}"
+             
+        return 1.0, ""

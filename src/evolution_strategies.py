@@ -1394,6 +1394,9 @@ Core Arguments:
         gen_count = explore_num * pass_rate
         
         new_items_to_save = []
+        
+        # Track personas generated in this session to prevent immediate duplicates
+        current_session_personas = [item.get('persona', 'General') for item in explored_items]
 
         for i in range(gen_count):
              # 1. Decide Persona Strategy (Rate from config, default 0.5)
@@ -1405,33 +1408,81 @@ Core Arguments:
              
              if use_existing_persona:
                  # Sample from existing personas
-                 # Get unique personas from history
-                 existing_personas = list(set([item.get('persona', 'General') for item in explored_items]))
-                 if existing_personas:
-                     target_persona = random.choice(existing_personas)
+                 # Get unique personas from history, favoring those NOT yet used in this session if possible?
+                 # Actually, reuse means we WANT to reuse. But maybe not the same one 5 times in a row?
+                 # Let's just pick random.
+                 existing_unique = list(set([item.get('persona', 'General') for item in explored_items]))
+                 if existing_unique:
+                     target_persona = random.choice(existing_unique)
                  else:
-                     use_existing_persona = False # Fallback to new
+                     use_existing_persona = False # Fallback
              
              if not use_existing_persona:
                  # Generate NEW Persona
-                 # Context of existing distinct personas
-                 existing_personas = list(set([item.get('persona', 'General') for item in explored_items]))
-                 existing_personas_str = ", ".join(existing_personas[-10:]) # last 10
+                 # Context: Use the DYNAMIC list including items generated in this loop
+                 # Take last 50 unique ones
+                 unique_session_personas = list(set(current_session_personas))
+                 # Sort to keep some order or just take last added? set is unordered. 
+                 # Let's use the list reversed and unique-ified preserving order
+                 seen = set()
+                 unique_ordered = []
+                 for p in reversed(current_session_personas):
+                     if p not in seen:
+                         allowed = True
+                         # Filter out empty or generic
+                         if not p or p == "General" or p == "Legacy": allowed = False
+                         if allowed:
+                            unique_ordered.append(p)
+                            seen.add(p)
+                 
+                 # unique_ordered is now newest first. Take top 50, then reverse back to chronological for prompt
+                 recent_personas = unique_ordered[:50][::-1]
+                 existing_personas_str = ", ".join(recent_personas)
+                 
+                 # unique_ordered is now newest first. Take top 50, then reverse back to chronological for prompt
+                 recent_personas = unique_ordered[:50][::-1]
+                 existing_personas_str = ", ".join(recent_personas)
                  
                  persona_gen_prompt = f"""
 Task: "{task_def}"
 Common Stance: {common_stance}
 
-Existing Personas: {existing_personas_str}
+Forbidden Personas (DO NOT USE): {existing_personas_str}
 
 Goal: Generate a NEW, DISTINCT Persona who supports the Common Stance but from a different background/perspective.
+Constraint 1: You must NOT use any persona listed in the "Forbidden Personas" list above.
+Constraint 2: DO NOT output any reasoning, explanation, or "SUPPORT:" prefix.
+Constraint 3: Output MUST be a single line containing ONLY the Persona Name.
+
 Examples: "Economist", "Historian", "Single Parent", "Software Engineer", "Ethicist", "Local Business Owner".
 
-Output ONLY the Persona Name (e.g. "Marine Biologist").
+Output ONLY the Persona Name.
 """
-                 target_persona = llm.generate(persona_gen_prompt).strip()
-                 # Clean up
-                 target_persona = target_persona.replace('"', '').replace("'", "").strip()
+                 # Retry loop for uniqueness
+                 max_retries = 3
+                 for retry in range(max_retries):
+                     target_persona = llm.generate(persona_gen_prompt).strip()
+                     # Clean up basics only
+                     target_persona = target_persona.replace('"', '').replace("'", "").strip()
+                     
+                     # Check uniqueness (case-insensitive)
+                     is_duplicate = False
+                     norm_target = target_persona.lower()
+                     for existing in current_session_personas:
+                         if existing.lower() == norm_target:
+                             is_duplicate = True
+                             break
+                    
+                     if not is_duplicate and target_persona:
+                         break # Found unique
+                     elif retry < max_retries - 1:
+                         # Append previous attempt to prompt to explicitly avoid it?
+                         # Or just retry. Let's just retry for now, maybe with a small tweak if possible but simple retry often works for temperature>0
+                         pass
+                 
+                 # Add to session tracking immediately
+                 if target_persona:
+                     current_session_personas.append(target_persona)
              
              # 2. Generate Argument based on Persona
              # Filter explored arguments for this persona if any? No, just list global explored args to avoid repetition?
