@@ -1334,18 +1334,17 @@ High Scoring Texts (Excerpt):
 
 Goal: Analyze these texts to identify the successful pattern.
 1. Identify the "Common Stance" (e.g. SUPPORT or OPPOSE).
-2. Summarize the "Core Arguments" used in these texts (what specific reasons are given?).
+2. Summarize the "Core Arguments" used in these texts.
 
 Output format:
 Common Stance: [Stance]
 Core Arguments:
 - [Argument 1]
-- [Argument 2]
 ...
 """
         norms = llm.generate(norm_prompt).strip()
         
-        # Logic to save/load explored arguments
+        # Logic to save/load explored items (Persona + Argument)
         def _get_knowledge_path(context):
             res_dir = context.get('result_dir')
             if res_dir:
@@ -1358,7 +1357,7 @@ Core Arguments:
                     with open(path, 'r') as f:
                         return json.load(f)
                 except: pass
-            return {"explored_arguments": []}
+            return {"explored_items": []} # changed from explored_arguments to explored_items
 
         def _save_knowledge(path, data):
             if path:
@@ -1367,105 +1366,133 @@ Core Arguments:
                         json.dump(data, f, indent=4, ensure_ascii=False)
                 except: pass
 
-        # Parse norms to extract arguments & stance
-        # We expect "Core Arguments:" followed by bullet points
-        current_args = []
+        # Extract Common Stance
         common_stance = "Unknown"
         try:
             if "Common Stance:" in norms:
                 common_stance = norms.split("Common Stance:", 1)[1].split('\n')[0].strip()
-
-            if "Core Arguments:" in norms:
-                section = norms.split("Core Arguments:", 1)[1]
-                lines = section.split('\n')
-                for line in lines:
-                    line = line.strip()
-                    if line.startswith("- ") or line.startswith("* "):
-                        current_args.append(line[2:])
         except: pass
 
-        # Load & Update Knowledge
+        # Load Knowledge
         k_path = _get_knowledge_path(context)
         knowledge_data = _load_knowledge(k_path)
-        existing_args = knowledge_data.get("explored_arguments", [])
         
-        # Add new ones (simple dedup)
-        for arg in current_args:
-            if arg not in existing_args:
-                existing_args.append(arg)
+        # Migration check: if old format exists, convert or ignore? Just ignore/overwrite for now as per user instruction impl plan implied fresh or compat
+        # Let's support loading old format if "explored_arguments" exists and "explored_items" is empty
+        if "explored_arguments" in knowledge_data and not knowledge_data.get("explored_items"):
+            # Convert old args to items with "Legacy" persona
+            knowledge_data["explored_items"] = [{"persona": "Legacy", "argument": arg} for arg in knowledge_data["explored_arguments"]]
+            
+        explored_items = knowledge_data.get("explored_items", [])
         
-        knowledge_data["explored_arguments"] = existing_args
-        _save_knowledge(k_path, knowledge_data)
+        # --- Persona & Argument Generation ---
         
-        # Format for prompt
-        avoid_list_str = "\n".join([f"- {a}" for a in existing_args])
-
-        # Stakeholder/Persona Injection
-        persona_prompt = f"""
-Explored Arguments (Safety/Security risks mostly):
-{avoid_list_str}
-
-Task: "{task_def}"
-Common Stance: {common_stance}
-
-Goal: Identify 5 distinct ARGUMENTS that support the Common Stance but have NOT been mentioned in the Explored Arguments list.
-We want to find "Undiscussed Arguments" (e.g. Economic impact, Historical precedent, Ethical rights, Long-term sociological effects).
-Avoid repeating the Safety/Security risks if they are already well explored.
-
-Output ONLY a JSON list of strings, e.g. ["Economic cost of maintenance", "Sovereign rights of smaller nations", ...].
-"""
-        arguments_text = llm.generate(persona_prompt).strip()
-        
-        # Parse arguments
-        target_arguments = []
-        try:
-            import re
-            json_match = re.search(r'\[.*\]', arguments_text, re.DOTALL)
-            if json_match:
-                target_arguments = json.loads(json_match.group(0))
-            else:
-                 # Fallback regex parsing
-                 lines = arguments_text.split('\n')
-                 for line in lines:
-                      clean = re.sub(r'^[\d\-\*\.]+\s*', '', line).strip()
-                      if clean and len(clean) < 100: # Arguments can be slightly longer than personas
-                           target_arguments.append(clean)
-        except: 
-            target_arguments = ["Ethical implication", "Economic aspect", "Historical context"] # Default fallback
-
-        if not target_arguments:
-             target_arguments = ["New Perspective"]
-
         # Generate explore_sample_num * sample_pass_rate candidates
         explore_candidates = []
         gen_count = explore_num * pass_rate
         
+        new_items_to_save = []
+
         for i in range(gen_count):
-             # Round-robin assignment of arguments
-             target_argument = target_arguments[i % len(target_arguments)]
+             # 1. Decide Persona Strategy (50% New, 50% Existing)
+             use_existing_persona = False
+             if explored_items and random.random() < 0.5:
+                 use_existing_persona = True
+                 
+             target_persona = ""
              
+             if use_existing_persona:
+                 # Sample from existing personas
+                 # Get unique personas from history
+                 existing_personas = list(set([item.get('persona', 'General') for item in explored_items]))
+                 if existing_personas:
+                     target_persona = random.choice(existing_personas)
+                 else:
+                     use_existing_persona = False # Fallback to new
+             
+             if not use_existing_persona:
+                 # Generate NEW Persona
+                 # Context of existing distinct personas
+                 existing_personas = list(set([item.get('persona', 'General') for item in explored_items]))
+                 existing_personas_str = ", ".join(existing_personas[-10:]) # last 10
+                 
+                 persona_gen_prompt = f"""
+Task: "{task_def}"
+Common Stance: {common_stance}
+
+Existing Personas: {existing_personas_str}
+
+Goal: Generate a NEW, DISTINCT Persona who supports the Common Stance but from a different background/perspective.
+Examples: "Economist", "Historian", "Single Parent", "Software Engineer", "Ethicist", "Local Business Owner".
+
+Output ONLY the Persona Name (e.g. "Marine Biologist").
+"""
+                 target_persona = llm.generate(persona_gen_prompt).strip()
+                 # Clean up
+                 target_persona = target_persona.replace('"', '').replace("'", "").strip()
+             
+             # 2. Generate Argument based on Persona
+             # Filter explored arguments for this persona if any? No, just list global explored args to avoid repetition?
+             # Let's list global arguments to avoid repetition generally
+             global_args = [item.get('argument', '') for item in explored_items[-20:]]
+             avoid_args_str = "\n".join([f"- {a}" for a in global_args if a])
+             
+             arg_gen_prompt = f"""
+Task: "{task_def}"
+Common Stance: {common_stance}
+Target Persona: {target_persona}
+
+Explored Arguments (Avoid these):
+{avoid_args_str}
+
+Goal: As the "{target_persona}", identify a specific ARGUMENT or REASON that supports the "{common_stance}".
+This argument should reflect the unique professional or personal experience of a {target_persona}.
+
+Output ONLY the Argument text (1 sentence).
+"""
+             target_argument = llm.generate(arg_gen_prompt).strip()
+             
+             # Save this exploration attempt to knowledge later if selected, 
+             # but here we just need to generate text.
+             # Note: We should probably only save to knowledge if it's actually selected? 
+             # Implementation plan says "store Persona with Argument". 
+             # Let's generate candidates first, then save selected ones?
+             # Or save all generated valid ones? EED usually saves "explored" things.
+             # Let's track them temp and save successful candidates.
+             
+             # 3. Generate Text
              constraint = self._get_task_constraint(context)
              gen_prompt = f"""
 {constraint}
 
 Task: "{task_def}"
 
-Target Argument: "{target_argument}"
+Role: {target_persona}
 Common Stance: {common_stance}
+Target Argument: "{target_argument}"
 
 Requirement:
-1. Write a text supporting the "Common Stance" specifically focusing on the "Target Argument".
-2. Develop this specific argument clearly and persuasively.
+1. Write a text supporting the "{common_stance}" from the perspective of a {target_persona}.
+2. Focus specifically on the reason: "{target_argument}".
+3. Adopt the tone and vocabulary appropriate for this persona.
 
-Goal: Create a high-quality text that introduces this specific angle ({target_argument}) to the population.
+Goal: Create a high-quality text that introduces this specific angle.
 CRITICAL: Output ONLY the text content.
 """
              text = llm.generate(gen_prompt).strip()
-             logic = self._create_logic_json(gen_prompt, "eed_explore_argument", f"Argument: {target_argument}")
-             explore_candidates.append((text, logic))
              
-        # Selection (Iterative Novelty against Exploit + Diversity)
-        # current_set already has Exploit + Diversity
+             logic_dict = {
+                 "meta_prompt": gen_prompt,
+                 "type": "eed_explore_persona",
+                 "explanation": f"Persona: {target_persona}, Arg: {target_argument}",
+                 "persona": target_persona,
+                 "argument": target_argument
+             }
+             logic = json.dumps(logic_dict, ensure_ascii=False)
+             
+             explore_candidates.append((text, logic, target_persona, target_argument))
+             
+        # Selection (Iterative Novelty)
         selected_explore = []
         current_set = [t[0] for t in new_texts]
         
@@ -1478,10 +1505,23 @@ CRITICAL: Output ONLY the text content.
              best_idx = novelties.index(max(novelties))
              selected = explore_candidates.pop(best_idx)
              
-             selected_explore.append(selected)
+             # Add to results
+             selected_explore.append((selected[0], selected[1]))
              current_set.append(selected[0])
              
+             # Add to items to save
+             new_items_to_save.append({
+                 "persona": selected[2],
+                 "argument": selected[3]
+             })
+             
         new_texts.extend(selected_explore)
+        
+        # Update Knowledge with SELECTED items
+        if new_items_to_save:
+            explored_items.extend(new_items_to_save)
+            knowledge_data["explored_items"] = explored_items
+            _save_knowledge(k_path, knowledge_data)
         
         # Final Fill
         while len(new_texts) < k:
