@@ -75,7 +75,9 @@ class EvolutionStrategy(ABC):
         """
         max_words = self._get_max_words(context)
         if max_words > 0:
-            return f"Constraint: The text must be strictly {max_words} words or less."
+            # Buffer Strategy: Subtract 2 to account for labels like "SUPPORT:"
+            safe_max = max(0, max_words - 2)
+            return f"CRITICAL CONSTRAINT: The text MUST be strictly {safe_max} words or less. Violations receive 0 score."
         return ""
 
     def _generate_with_retry(self, llm: LLMInterface, prompt: str, context: Dict[str, Any], max_retries: int = 3) -> str:
@@ -250,7 +252,8 @@ class TextGradStrategy(EvolutionStrategy):
     def _load_config(self) -> Dict[str, Any]:
         config_path = os.path.join(os.getcwd(), "config", "logic", "textgrad.yaml")
         default_config = {
-            "elite_sample_num": 1
+            "elite_sample_num": 1,
+            "gradient_max_words": 25 # Default
         }
         if os.path.exists(config_path):
             try:
@@ -301,6 +304,12 @@ Provide a clear, actionable "Gradient" (instruction) on how to modify the text t
 Note: The score is on a scale of 0.0 to 1.0.
 
 Important: Any improvement suggestion MUST be achievable within the task constraints (e.g. word count).
+
+Constraint 1: The Gradient itself MUST be concise. MAXIMUM {self.config.get('gradient_max_words', 25)} WORDS.
+Constraint 2: The improvement must be feasible within the target text's length constraint (e.g. 19 words).
+Constraint 3: Do NOT provide the full rewritten text. Provide only the instruction/direction.
+Do not ask for "specific examples" or "detailed reasons" if they cannot fit.
+Do not waste words on politeness. Be direct.
 """
             gradient = llm.generate(gradient_prompt).strip()
             
@@ -398,7 +407,9 @@ class TextGradV2Strategy(EvolutionStrategy):
         config_path = os.path.join(os.getcwd(), "config", "logic", "textgradv2.yaml")
         default_config = {
             "ref_sampling_weight": 10.0,
-            "ref_sampling_num": 3
+            "ref_sampling_weight": 10.0,
+            "ref_sampling_num": 3,
+            "gradient_max_words": 25 # Default
         }
         if os.path.exists(config_path):
             try:
@@ -1120,7 +1131,8 @@ class EEDStrategy(EvolutionStrategy):
             "explore_sample_num": 2,
             "grad_temperature": 1.0,
             "sample_pass_rate": 3,
-            "elite_sample_num": 1
+            "elite_sample_num": 1,
+            "gradient_max_words": 25 # Default
         }
         if os.path.exists(config_path):
             try:
@@ -1259,6 +1271,12 @@ Provide a clear, actionable "Gradient" (instruction) on how to modify the text t
 Note: The score is on a scale of 0.0 to 1.0.
 
 Important: Any improvement suggestion MUST be achievable within the task constraints (e.g. word count).
+
+Constraint 1: The Gradient itself MUST be concise. MAXIMUM {self.config.get('gradient_max_words', 25)} WORDS.
+Constraint 2: The improvement must be feasible within the target text's length constraint (e.g. 19 words).
+Constraint 3: Do NOT provide the full rewritten text. Provide only the instruction/direction.
+Do not ask for "specific examples" or "detailed reasons" if they cannot fit.
+Do not waste words on politeness. Be direct.
 """
                 gradient = llm.generate(grad_prompt).strip()
                 
