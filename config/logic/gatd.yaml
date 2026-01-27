@@ -1,6 +1,6 @@
 # GATD (Genetic Algorithm with TextGrad and Diversity) Configuration
 elite_sample_num: 1
-gd_sample_num: 4
-grad_sample_num: 3
+gd_sample_num: 3
+grad_sample_num: 4
 mutation_sample_num: 2
 gradient_max_words: 25
