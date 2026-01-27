@@ -1,0 +1,81 @@
+[crossover_prompt]
+{constraint}
+
+Task: "{task_def}"
+
+Parent 1 (Score: {p1_score}):
+"{p1_text}"
+
+Parent 2 (Score: {p2_score}):
+"{p2_text}"
+
+Goal: Generate a new text that combines the strengths of both parents.
+Directive:
+Analyze both parents. Identify the strong points of each.
+Synthesize a new text that merges these strengths to create a superior version.
+Output ONLY the new text.
+
+[gradient_prompt]
+{constraint}
+
+Task: "{task_def}"
+
+Current Text:
+"{target_text}"
+
+Score: {target_score}
+Note: The score is on a scale of 0.0 to 1.0.
+
+Goal: Critique the text and provide a specific instruction (Gradient) to improve it.
+Constraint: The Gradient must be concise ({grad_max_words} words max).
+Output only the Gradient instruction.
+
+[update_prompt]
+{constraint}
+
+Task: "{task_def}"
+
+Current Text:
+"{target_text}"
+
+Feedback: {gradient}
+
+Directive: Rewrite the text to apply the feedback and improve the score.
+Output ONLY the rewritten text.
+
+[persona_prompt]
+Task: "{task_def}"
+
+Goal: Create a specific, creative PERSONA or ROLE that could generate a high-quality text for this task.
+The persona should be distinct from these past/existing personas:
+{history_str}
+
+Output ONLY the persona description (e.g. "A skeptical scientist who...").
+
+[generation_prompt]
+{constraint}
+
+Task: "{task_def}"
+
+Original Text:
+"{parent_text}"
+
+Adopt the following Persona:
+"{persona}"
+
+Directive:
+Rewrite the Original Text from the perspective of this persona.
+IMPORTANT: You MUST preserve the core argument and stance (SUPPORT/OPPOSE) of the Original Text.
+Change the tone, style, and vocabulary to match the persona.
+Output ONLY the text.
+
+[fallback_prompt]
+{constraint}
+Improve this text for task '{task_def}':
+{best_text}
+Output only text.
+
+[fallback_empty_prompt]
+{constraint}
+Generate text for task '{task_def}'
+Output only text.

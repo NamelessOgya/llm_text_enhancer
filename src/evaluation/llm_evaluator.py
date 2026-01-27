@@ -11,16 +11,37 @@ class LLMEvaluator(Evaluator):
     LLM (Large Language Model) を使用してテキストの品質を定性的・定量的に評価するクラス。
     指定されたLLMアダプターを経由して評価用プロンプトを送信し、その応答をパースしてスコア化する。
     """
-    def __init__(self, llm: LLMInterface):
+    def __init__(self, llm: LLMInterface, context: dict = None):
         """
         Args:
             llm (LLMInterface): 評価に使用するLLMアダプター (OpenAIやGeminiなど)
+            context (dict): タスク情報などを含むコンテキスト
         """
         self.llm = llm
+        self.context = context or {}
+        self.prompts = {}
         
         # Initialize Cache
         from .cache import EvaluationCache
         self.cache = EvaluationCache()
+
+    def _ensure_prompts(self):
+        if not self.prompts:
+            import os
+            from utils import load_taml_sections
+            
+            strategy_name = "judge"
+            # Default path (root of prompts)
+            path = os.path.join(os.getcwd(), "config", "definitions", "prompts", f"{strategy_name}.taml")
+            
+            # Task-specific path if available
+            if self.context and "task_name" in self.context:
+                task_name = self.context["task_name"]
+                task_path = os.path.join(os.getcwd(), "config", "definitions", "prompts", task_name, f"{strategy_name}.taml")
+                if os.path.exists(task_path):
+                    path = task_path
+            
+            self.prompts = load_taml_sections(path)
 
     def evaluate(self, text: str, target: str) -> Tuple[float, str]:
         """
@@ -46,16 +67,11 @@ class LLMEvaluator(Evaluator):
 
         # 評価用プロンプトの構築
         # "Score:" と "Reason:" という特定のフォーマットでの出力を強制する。
-        prompt = f"""
-        Rate how well the following text matches the description/preference: "{target}".
-        Text: "{text}"
-        
-        Provide a score from 0 to 10 (10 being perfect match) and a brief reason.
-        
-        Format your response exactly as follows:
-        Score: <score>
-        Reason: <reason>
-        """
+        self._ensure_prompts()
+        prompt = self.prompts["judge_prompt"].format(
+            target=target,
+            text=text
+        )
         
         score = 0.0
         reason = ""

@@ -1,0 +1,37 @@
+[gradient_prompt]
+{constraint}
+
+Task Definition: "{task_def}"
+
+Current Text:
+"{target_text}"
+
+Score: {score}
+
+Goal: Critique the Current Text strictly. Identify specific weaknesses that prevent it from achieving a higher score.
+Provide a clear, actionable "Gradient" (instruction) on how to modify the text to improve it.
+
+Note: The score is on a scale of 0.0 to 1.0.
+
+Important: Any improvement suggestion MUST be achievable within the task constraints (e.g. word count).
+
+Constraint 1: The Gradient itself MUST be concise. MAXIMUM {gradient_max_words} WORDS.
+Constraint 2: The improvement must be feasible within the target text's length constraint (e.g. 19 words).
+Constraint 3: Do NOT provide the full rewritten text. Provide only the instruction/direction.
+Do not ask for "specific examples" or "detailed reasons" if they cannot fit.
+Do not waste words on politeness. Be direct.
+
+[update_prompt]
+{constraint}
+
+Task Definition: "{task_def}"
+
+Current Text:
+"{target_text}"
+
+Feedback (Gradient) for Improvement:
+{gradient}
+
+Directive:
+Rewrite the Current Text incorporating the feedback above to maximize the score.
+Output ONLY the rewritten text.

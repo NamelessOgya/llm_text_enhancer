@@ -1,0 +1,85 @@
+[knowledge_update_prompt]
+Task: "{task_def}"
+
+Current Knowledge (JSON):
+{current_knowledge_json}
+
+Recent Results:
+{summary_context}
+
+Goal: Update the Knowledge JSON based on the Recent Results.
+- Extract insights about what makes a text good or bad (e.g. length, tone, structure).
+- If a new insight contradicts or refines existing knowledge, update the value.
+- If it's a new insight, add a new key.
+- Keep values concise.
+
+Output ONLY the updated JSON object (Key-Value pairs).
+
+[explore_prompt]
+Task: "{task_def}"
+
+Current Knowledge:
+{knowledge_json}
+
+Goal: Generate {t} NEW hypotheses (strategies) for writing a high-quality text.
+- Look for gaps in the Current Knowledge or try a different angle.
+- The hypothesis must be an INSTRUCTION.
+
+Output JSON list of strings.
+
+[exploit_prompt]
+Task: "{task_def}"
+
+Existing Knowledge:
+{knowledge_text}
+
+Goal: Generate {exploit_count} NEW hypotheses that COMBINE or REFINE the existing knowledge.
+
+CRITICAL:
+- The output must be an INSTRUCTION or STRATEGY, NOT an example of the text.
+- Do NOT generate the actual content.
+
+Output JSON list of strings.
+
+[theo_prompt]
+{constraint}
+
+Task: "{task_def}"
+
+Knowledge:
+{knowledge_text}
+
+Directive:
+Generate the THEORETICALLY OPTIMAL text by applying ALL the knowledge above.
+Output ONLY the text.
+
+[gen_prompt]
+{constraint}
+
+Task: "{task_def}"
+Hypothesis: "{hyp}"
+
+Directive: Generate text based on the hypothesis. Output only text.
+
+[grad_prompt]
+Task: "{task_def}"
+
+Previous Generation Results (Context):
+{batch_context}
+
+Target Text:
+"{target_text}"
+
+Goal: Improve the Target Text.
+Using the insights from the Previous Generation Results (what works vs what fails), provide a Gradient (instruction) to optimize the Target Text.
+
+Note: The score is on a scale of 0.0 to 1.0.
+
+[update_prompt]
+{constraint}
+
+Task: "{task_def}"
+Original Text: "{target_text}"
+Feedback: {gradient}
+
+Directive: Rewrite the text to maximize score. Output only text.

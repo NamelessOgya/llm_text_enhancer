@@ -1,0 +1,12 @@
+[mutation_prompt]
+{constraint}
+
+Your goal is to improve the following text for the task: "{task_def}".
+
+Original Text:
+"{parent_text}"
+
+Directive:
+Apply the following mutation to the text: {m_type}.
+Ensure the result is a valid output for the task.
+Output ONLY the improved text.

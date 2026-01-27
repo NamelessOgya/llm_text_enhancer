@@ -1,0 +1,12 @@
+[meta_prompt]
+{constraint}
+
+Task Definition: "{task_def}"
+
+Here are some examples of high-quality texts generated for this task:
+
+{examples_text}
+
+Directive:
+Generate a NEW text that achieves the same high quality as the examples above, but is distinct/creative.
+Output ONLY the new text.

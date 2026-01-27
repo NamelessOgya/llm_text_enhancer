@@ -11,6 +11,7 @@ EVALUATOR_TYPE=$5
 TARGET_PREFERENCE=$6
 EVOLUTION_METHOD=${7:-ga}
 POPULATION_NAME=${8:-default}
+TASK_DEFINITION=${9:-""}
 
 # Get absolute path to project root
 PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -28,4 +29,5 @@ python3 "$PROJECT_ROOT/src/evaluate.py" \
     --evaluator-type "$EVALUATOR_TYPE" \
     --target-preference "$TARGET_PREFERENCE" \
     --evolution-method "$EVOLUTION_METHOD" \
-    --population-name "$POPULATION_NAME"
+    --population-name "$POPULATION_NAME" \
+    --task-definition "$TASK_DEFINITION"

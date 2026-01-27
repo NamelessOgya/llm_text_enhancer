@@ -1,0 +1,135 @@
+[contrastive_gradient_prompt]
+{constraint}
+
+Task Definition: "{task_def}"
+
+Current Text:
+"{parent_text}"
+
+Score: {score}
+
+We have already identified one way to improve this text (Standard Gradient):
+"{existing_gradient}"
+
+Goal: Identify a DIFFERENT, CONTRASTIVE weakness or improvement direction.
+We want to explore a diverse optimization path. Do NOT repeat the Standard Gradient.
+Find another angle to critique (e.g. if Standard focused on "clarity", focus on "logic" or "persuasiveness").
+
+Provide a clear, actionable "Contrastive Gradient" (instruction) on how to modify the text.
+
+[grad_prompt]
+{constraint}
+
+Task Definition: "{task_def}"
+
+Current Text:
+"{parent_text}"
+
+Score: {parent_score}
+
+Goal: Critique the Current Text strictly. Identify specific weaknesses that prevent it from achieving a higher score.
+Provide a clear, actionable "Gradient" (instruction) on how to modify the text to improve it.
+
+Note: The score is on a scale of 0.0 to 1.0.
+
+Important: Any improvement suggestion MUST be achievable within the task constraints (e.g. word count).
+
+Constraint 1: The Gradient itself MUST be concise. MAXIMUM {gradient_max_words} WORDS.
+Constraint 2: The improvement must be feasible within the target text's length constraint (e.g. 19 words).
+Constraint 3: Do NOT provide the full rewritten text. Provide only the instruction/direction.
+Do not ask for "specific examples" or "detailed reasons" if they cannot fit.
+Do not waste words on politeness. Be direct.
+
+[update_prompt]
+{constraint}
+
+Task Definition: "{task_def}"
+
+Current Text:
+"{parent_text}"
+
+Feedback (Gradient) for Improvement:
+{gradient}
+
+Directive:
+Rewrite the Current Text incorporating the feedback above to maximize the score.
+Output ONLY the rewritten text.
+
+[contrastive_update_prompt]
+{constraint}
+
+Task Definition: "{task_def}"
+
+Current Text:
+"{parent_text}"
+
+Alternative Feedback (Contrastive Gradient):
+{contrastive_gradient}
+
+Directive:
+Rewrite the Current Text incorporating this ALTERNATIVE feedback.
+This is a different improvement path than the standard approach.
+Output ONLY the rewritten text.
+
+[norm_prompt]
+Task: "{task_def}"
+
+High Scoring Texts (Excerpt):
+{top_texts}
+
+Goal: Analyze these texts to identify the successful pattern.
+1. Identify the "Common Stance" (e.g. SUPPORT or OPPOSE).
+2. Summarize the "Core Arguments" used in these texts.
+
+Output format:
+Common Stance: [Stance]
+Core Arguments:
+- [Argument 1]
+...
+
+[persona_gen_prompt]
+Task: "{task_def}"
+Common Stance: {common_stance}
+
+Forbidden Personas (DO NOT USE): {existing_personas_str}
+
+Goal: Generate a NEW, DISTINCT Persona who supports the Common Stance but from a different background/perspective.
+Constraint 1: You must NOT use any persona listed in the "Forbidden Personas" list above.
+Constraint 2: Output MUST be a valid JSON object.
+
+Examples: {{"persona": "Economist"}}, {{"persona": "Single Parent"}}, {{"persona": "Ethicist"}}
+
+Output schema:
+{{
+  "persona": "string"
+}}
+
+[arg_gen_prompt]
+Task: "{task_def}"
+Common Stance: {common_stance}
+Target Persona: {target_persona}
+
+Explored Arguments (Avoid these):
+{avoid_args_str}
+
+Goal: As the "{target_persona}", identify a specific ARGUMENT or REASON that supports the "{common_stance}".
+This argument should reflect the unique professional or personal experience of a {target_persona}.
+
+Output ONLY the Argument text (1 sentence).
+
+[gen_prompt]
+{constraint}
+
+Task: "{task_def}"
+
+Role: {target_persona}
+Common Stance: {common_stance}
+Target Argument: "{target_argument}"
+
+Requirement:
+1. Write a text supporting the "{common_stance}" from the perspective of a {target_persona}.
+2. Focus specifically on the reason: "{target_argument}".
+3. Adopt the tone and vocabulary appropriate for this persona.
+
+Goal: Create a high-quality text that introduces this specific angle.
+CRITICAL: Output ONLY the text content.

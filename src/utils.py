@@ -188,3 +188,45 @@ def parse_taml_ref(file_path: str) -> Dict[str, str]:
             ref_data[key.strip()] = val.strip()
             
     return ref_data
+
+def load_taml_sections(file_path: str) -> Dict[str, str]:
+    """
+    TAMLファイル内の全セクションを辞書としてロードする。
+    
+    Args:
+        file_path (str): .tamlファイルのパス
+        
+    Returns:
+        Dict[str, str]: セクション名をキー、内容を値とする辞書。
+                        例: {'background': '...', 'content': '...'}
+    """
+    if not os.path.exists(file_path):
+        # 存在しない場合は空辞書を返す（またはエラー）
+        return {}
+        
+    with open(file_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+        
+    sections = {}
+    current_section = None
+    current_content = []
+    
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            # セクション終了時の保存
+            if current_section:
+                sections[current_section] = "".join(current_content).strip()
+            
+            # 新しいセクション開始
+            current_section = stripped[1:-1]
+            current_content = []
+        else:
+            if current_section:
+                current_content.append(line)
+                
+    # 最後のセクションを保存
+    if current_section:
+        sections[current_section] = "".join(current_content).strip()
+        
+    return sections

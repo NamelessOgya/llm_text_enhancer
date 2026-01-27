@@ -1,0 +1,17 @@
+[meta_prompt]
+{constraint}
+
+Task Definition: "{task_def}"
+
+I have a sequence of texts generated for this task, sorted by their quality score (low to high).
+Your goal is to identify the pattern of improvement and generate the NEXT, SUPERIOR version of the text.
+
+Optimization Trajectory:
+{trajectory_text}
+
+Note: The score is on a scale of 0.0 to 1.0.
+
+Directive:
+Analyze the improvements made in the trajectory.
+Generate a new text that is strictly better than the last version in the trajectory.
+Output ONLY the new text.

@@ -11,38 +11,6 @@ from llm.factory import get_llm_adapter
 
 logger = logging.getLogger(__name__)
 
-def evaluate_single_text_llm(llm: LLMInterface, text: str, target_pref: str) -> Dict[str, Any]:
-    """
-    LLMを使用して単一のテキストを評価する。
-    """
-    eval_prompt = f"""
-Target Preference: "{target_pref}"
-
-Text to Evaluate:
-"{text}"
-
-Task:
-Evaluate the text based on the target preference.
-Give a score from 0.0 to 1.0 (float).
-Provide a brief reason for the score.
-
-Output JSON format:
-{{
-    "score": <float>,
-    "reason": "<string>"
-}}
-"""
-    response = llm.generate(eval_prompt)
-    try:
-        cleaned = response.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[1]
-            if cleaned.rfind("```") != -1:
-                cleaned = cleaned[:cleaned.rfind("```")]
-        return json.loads(cleaned)
-    except Exception as e:
-        logger.warning(f"Evaluation parsing failed: {e}. Defaulting to score 0.")
-        return {"score": 0.0, "reason": "Failed to parse evaluator response."}
 
 def update_row_score_summary(row_dir: str):
     """
@@ -102,6 +70,7 @@ def main():
     parser.add_argument("--target-preference", required=True)
     parser.add_argument("--evolution-method", default="ga") # ディレクトリ特定のため必要
     parser.add_argument("--population-name", default="default")
+    parser.add_argument("--task-definition", help="タスク定義ファイルパス (Optional)")
     args = parser.parse_args()
 
     # 親ディレクトリ: result/exp/pop/method/evaluator
@@ -128,7 +97,23 @@ def main():
     from evaluation.rule_evaluator import get_rule_evaluator
     
     if args.evaluator_type == "llm":
-        llm = get_llm_adapter(args.adapter_type, args.model_name)
+        from evaluation.llm_evaluator import LLMEvaluator
+        
+        context = {}
+        # Extract task name if available
+        if args.task_definition:
+            try:
+                task_def_basename = os.path.basename(args.task_definition)
+                if task_def_basename.startswith("task_") and task_def_basename.endswith(".taml"):
+                    task_name = task_def_basename[5:-5]
+                    context["task_name"] = task_name
+            except: pass
+            
+        base_llm = get_llm_adapter(args.adapter_type, args.model_name)
+        # Use LLMEvaluator wrapper
+        llm = None # We won't use raw llm logic anymore
+        rule_evaluator = LLMEvaluator(base_llm, context=context)
+        
     elif args.evaluator_type == "perspectrum_llm":
         from llm.interface import LLMInterface # ensure type availability if needed
         base_llm = get_llm_adapter(args.adapter_type, args.model_name)
@@ -215,11 +200,7 @@ def main():
             score = 0.0
             reason = ""
             
-            if llm:
-                eval_res = evaluate_single_text_llm(llm, content, eval_target_content)
-                score = eval_res.get("score", 0.0)
-                reason = eval_res.get("reason", "")
-            elif rule_evaluator:
+            if rule_evaluator:
                 s, r = rule_evaluator.evaluate(content, eval_target_content)
                 score = s
                 reason = r

@@ -17,6 +17,7 @@ except ImportError:
 import yaml
 
 from llm.interface import LLMInterface
+from utils import load_taml_sections
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,23 @@ class EvolutionStrategy(ABC):
     プロンプト進化戦略の基底クラス (Abstract Base Class)。
     全ての手法はこのクラスを継承し、evolveメソッドを実装する必要がある。
     """
+    def __init__(self):
+        self.prompts = {}
+    
+    def _ensure_prompts(self, strategy_name: str, context: Dict[str, Any] = None):
+        if not self.prompts:
+            # Default path (root of prompts)
+            path = os.path.join(os.getcwd(), "config", "definitions", "prompts", f"{strategy_name}.taml")
+            
+            # Task-specific path if available
+            if context and "task_name" in context:
+                task_name = context["task_name"]
+                task_path = os.path.join(os.getcwd(), "config", "definitions", "prompts", task_name, f"{strategy_name}.taml")
+                if os.path.exists(task_path):
+                    path = task_path
+            
+            self.prompts = load_taml_sections(path)
+            
     @abstractmethod
     def evolve(self, llm: LLMInterface, population: List[Dict[str, Any]], k: int, task_def: str, context: Dict[str, Any]) -> List[Tuple[str, str]]:
         """
@@ -121,22 +139,18 @@ class EvolutionStrategy(ABC):
         """
         logger.info("Generating initial population (Texts) using Default Strategy...")
         
+        # Load Prompts for Default/Base
+        self._ensure_prompts("default", context)
+
         constraint = self._get_task_constraint(context)
-        creation_prompt = f"""
-{constraint}
-
-Task Definition: "{task_def}"
-
-Goal: Generate {k} distinct, high-quality text outputs for the above task.
-
-Requirements:
-1. Generate exactly {k} different text variations.
-2. The texts should vary in style, tone, or perspective.
-3. OUTPUT MUST BE A VALID JSON LIST OF STRINGS. No other text.
-
-Example Output:
-["Text option 1 including details...", "Text option 2 with different focus...", ...]
-"""
+        
+        # Format Creation Prompt
+        creation_prompt = self.prompts["creation_prompt"].format(
+            constraint=constraint,
+            task_def=task_def,
+            k=k
+        )
+        
         response = llm.generate(creation_prompt)
         
         try:
@@ -173,7 +187,10 @@ Example Output:
         texts = texts[:k]
         while len(texts) < k:
             constraint = self._get_task_constraint(context)
-            single_prompt = f"{constraint}\nGenerate a high-quality text for the task: {task_def}\nOutput only the text."
+            single_prompt = self.prompts["single_prompt"].format(
+                constraint=constraint,
+                task_def=task_def
+            )
             single_text = llm.generate(single_prompt).strip()
             texts.append((single_text, single_prompt))
             
@@ -189,6 +206,8 @@ class GeneticAlgorithmStrategy(EvolutionStrategy):
     """
     def evolve(self, llm: LLMInterface, population: List[Dict[str, Any]], k: int, task_def: str, context: Dict[str, Any]) -> List[Tuple[str, str]]:
         logger.info("Evolving population using Genetic Algorithm Strategy (Text Optimization)...")
+        
+        self._ensure_prompts("ga", context)
         
         # スコア順にソート (降順)
         # スコア順にソート (降順) - 同点時はランダム
@@ -220,19 +239,12 @@ class GeneticAlgorithmStrategy(EvolutionStrategy):
             m_type = random.choice(mutation_types)
             
             constraint = self._get_task_constraint(context)
-            mutation_prompt = f"""
-{constraint}
-
-Your goal is to improve the following text for the task: "{task_def}".
-
-Original Text:
-"{parent_text}"
-
-Directive:
-Apply the following mutation to the text: {m_type}.
-Ensure the result is a valid output for the task.
-Output ONLY the improved text.
-"""
+            mutation_prompt = self.prompts["mutation_prompt"].format(
+                constraint=constraint,
+                task_def=task_def,
+                parent_text=parent_text,
+                m_type=m_type
+            )
             mutated_text = llm.generate(mutation_prompt).strip()
             new_texts.append((mutated_text, mutation_prompt))
             
@@ -247,6 +259,7 @@ class TextGradStrategy(EvolutionStrategy):
     2. その分析に基づいてテキストをリライトする(Update)。
     """
     def __init__(self):
+        super().__init__()
         self.config = self._load_config()
 
     def _load_config(self) -> Dict[str, Any]:
@@ -266,6 +279,8 @@ class TextGradStrategy(EvolutionStrategy):
 
     def evolve(self, llm: LLMInterface, population: List[Dict[str, Any]], k: int, task_def: str, context: Dict[str, Any]) -> List[Tuple[str, str]]:
         logger.info("Evolving population using TextGrad Strategy (Text Optimization)...")
+        
+        self._ensure_prompts("textgrad", context)
         
         elite_num = self.config.get("elite_sample_num", 1)
 
@@ -287,49 +302,26 @@ class TextGradStrategy(EvolutionStrategy):
             reason = target.get('reason', 'N/A')
             
             # Step 1: 勾配(改善提案)の生成
+            # Step 1: 勾配(改善提案)の生成
             constraint = self._get_task_constraint(context)
-            gradient_prompt = f"""
-{constraint}
-
-Task Definition: "{task_def}"
-
-Current Text:
-"{target_text}"
-
-Score: {score}
-
-Goal: Critique the Current Text strictly. Identify specific weaknesses that prevent it from achieving a higher score.
-Provide a clear, actionable "Gradient" (instruction) on how to modify the text to improve it.
-
-Note: The score is on a scale of 0.0 to 1.0.
-
-Important: Any improvement suggestion MUST be achievable within the task constraints (e.g. word count).
-
-Constraint 1: The Gradient itself MUST be concise. MAXIMUM {self.config.get('gradient_max_words', 25)} WORDS.
-Constraint 2: The improvement must be feasible within the target text's length constraint (e.g. 19 words).
-Constraint 3: Do NOT provide the full rewritten text. Provide only the instruction/direction.
-Do not ask for "specific examples" or "detailed reasons" if they cannot fit.
-Do not waste words on politeness. Be direct.
-"""
+            gradient_prompt = self.prompts["gradient_prompt"].format(
+                constraint=constraint,
+                task_def=task_def,
+                target_text=target_text,
+                score=score,
+                gradient_max_words=self.config.get('gradient_max_words', 25)
+            )
             gradient = llm.generate(gradient_prompt).strip()
             
             # Step 2: 勾配の適用 (Update)
+            # Step 2: 勾配の適用 (Update)
             constraint = self._get_task_constraint(context)
-            update_prompt = f"""
-{constraint}
-
-Task Definition: "{task_def}"
-
-Current Text:
-"{target_text}"
-
-Feedback (Gradient) for Improvement:
-{gradient}
-
-Directive:
-Rewrite the Current Text incorporating the feedback above to maximize the score.
-Output ONLY the rewritten text.
-"""
+            update_prompt = self.prompts["update_prompt"].format(
+                constraint=constraint,
+                task_def=task_def,
+                target_text=target_text,
+                gradient=gradient
+            )
             updated_text = llm.generate(update_prompt).strip()
             new_texts.append((updated_text, f"TextGrad Update:\nGradient: {gradient}\nMakePrompt: {update_prompt}"))
             
@@ -401,6 +393,7 @@ class TextGradV2Strategy(EvolutionStrategy):
     このクラスは将来的な研究・改善のためにコードベースに残されています。
     """
     def __init__(self):
+        super().__init__()
         self.config = self._load_config()
 
     def _load_config(self) -> Dict[str, Any]:
@@ -465,6 +458,8 @@ class TextGradV2Strategy(EvolutionStrategy):
     def evolve(self, llm: LLMInterface, population: List[Dict[str, Any]], k: int, task_def: str, context: Dict[str, Any]) -> List[Tuple[str, str]]:
         logger.info("Evolving population using TextGrad V2 Strategy...")
         
+        self._ensure_prompts("textgradv2", context)
+        
         result_dir = context.get('result_dir')
         current_iter = context.get('iteration', 1)
         
@@ -498,45 +493,23 @@ class TextGradV2Strategy(EvolutionStrategy):
             
             # Step 1: Gradient
             constraint = self._get_task_constraint(context)
-            gradient_prompt = f"""
-{constraint}
-
-Task Definition: "{task_def}"
-
-Current Text:
-"{target_text}"
-
-Score: {score}
-
-Reference Information (Past Attempts):
-{ref_text}
-
-Goal: Critique the Current Text. Use the Reference Information to identify what high-scoring texts have in common or what low-scoring texts missed.
-Provide a clear, actionable "Gradient" (instruction) on how to modify the text to improve it.
-
-Note: The score is on a scale of 0.0 to 1.0.
-
-Important: Any improvement suggestion MUST be achievable within the task constraints (e.g. word count).
-"""
+            gradient_prompt = self.prompts["gradient_prompt"].format(
+                 constraint=constraint,
+                 task_def=task_def,
+                 target_text=target_text,
+                 score=score,
+                 ref_text=ref_text
+            )
             gradient = llm.generate(gradient_prompt).strip()
             
             # Step 2: Update
             constraint = self._get_task_constraint(context)
-            update_prompt = f"""
-{constraint}
-
-Task Definition: "{task_def}"
-
-Current Text:
-"{target_text}"
-
-Feedback (Gradient):
-{gradient}
-
-Directive:
-Rewrite the Current Text incorporating the feedback above to maximize the score.
-Output ONLY the rewritten text.
-"""
+            update_prompt = self.prompts["update_prompt"].format(
+                constraint=constraint,
+                task_def=task_def,
+                target_text=target_text,
+                gradient=gradient
+            )
             updated_text = llm.generate(update_prompt).strip()
             new_texts.append((updated_text, f"TextGrad V2 Update:\nGradient: {gradient}\nMakePrompt: {update_prompt}"))
             
@@ -554,6 +527,8 @@ class TrajectoryStrategy(EvolutionStrategy):
 
     def evolve(self, llm: LLMInterface, population: List[Dict[str, Any]], k: int, task_def: str, context: Dict[str, Any]) -> List[Tuple[str, str]]:
         logger.info("Evolving population using Trajectory Strategy (Text Optimization)...")
+        
+        self._ensure_prompts("trajectory", context)
         
         result_dir = context.get('result_dir')
         current_iter = context.get('iteration', 1)
@@ -581,24 +556,11 @@ class TrajectoryStrategy(EvolutionStrategy):
         new_texts = []
         while len(new_texts) < k:
             constraint = self._get_task_constraint(context)
-            meta_prompt = f"""
-{constraint}
-
-Task Definition: "{task_def}"
-
-I have a sequence of texts generated for this task, sorted by their quality score (low to high).
-Your goal is to identify the pattern of improvement and generate the NEXT, SUPERIOR version of the text.
-
-Optimization Trajectory:
-{trajectory_text}
-
-Note: The score is on a scale of 0.0 to 1.0.
-
-Directive:
-Analyze the improvements made in the trajectory.
-Generate a new text that is strictly better than the last version in the trajectory.
-Output ONLY the new text.
-"""
+            meta_prompt = self.prompts["meta_prompt"].format(
+                constraint=constraint,
+                task_def=task_def,
+                trajectory_text=trajectory_text
+            )
             next_text = llm.generate(meta_prompt).strip()
             new_texts.append((next_text, meta_prompt))
             
@@ -614,6 +576,8 @@ class DemonstrationStrategy(EvolutionStrategy):
     def evolve(self, llm: LLMInterface, population: List[Dict[str, Any]], k: int, task_def: str, context: Dict[str, Any]) -> List[Tuple[str, str]]:
         logger.info("Evolving population using Demonstration Strategy (Text Optimization)...")
         
+        self._ensure_prompts("demonstration", context)
+        
         sorted_pop = sorted(population, key=lambda x: x['score'], reverse=True)
         top_examples = sorted_pop[:5] # Top 5を事例として使う
         
@@ -624,19 +588,11 @@ class DemonstrationStrategy(EvolutionStrategy):
         new_texts = []
         while len(new_texts) < k:
             constraint = self._get_task_constraint(context)
-            meta_prompt = f"""
-{constraint}
-
-Task Definition: "{task_def}"
-
-Here are some examples of high-quality texts generated for this task:
-
-{examples_text}
-
-Directive:
-Generate a NEW text that achieves the same high quality as the examples above, but is distinct/creative.
-Output ONLY the new text.
-"""
+            meta_prompt = self.prompts["meta_prompt"].format(
+                constraint=constraint,
+                task_def=task_def,
+                examples_text=examples_text
+            )
             generated_text = llm.generate(meta_prompt).strip()
             new_texts.append((generated_text, meta_prompt))
             
@@ -980,23 +936,14 @@ class HEStrategy(EvolutionStrategy):
         for p in sorted_pop[-3:]:
              summary_context += f"- Score {p['score']}: {p['text'][:200]}...\n"
 
-        prompt = f"""
-Task: "{task_def}"
-
-Current Knowledge (JSON):
-{json.dumps(current_knowledge, indent=2)}
-
-Recent Results:
-{summary_context}
-
-Goal: Update the Knowledge JSON based on the Recent Results.
-- Extract insights about what makes a text good or bad (e.g. length, tone, structure).
-- If a new insight contradicts or refines existing knowledge, update the value.
-- If it's a new insight, add a new key.
-- Keep values concise.
-
-Output ONLY the updated JSON object (Key-Value pairs).
-"""
+        if not self.prompts:
+             self._ensure_prompts("he", context)
+             
+        prompt = self.prompts["knowledge_update_prompt"].format(
+            task_def=task_def,
+            current_knowledge_json=json.dumps(current_knowledge, indent=2),
+            summary_context=summary_context
+        )
         response = llm.generate(prompt).strip()
         try:
             if response.startswith("```"):
@@ -1017,6 +964,8 @@ Output ONLY the updated JSON object (Key-Value pairs).
     def evolve(self, llm: LLMInterface, population: List[Dict[str, Any]], k: int, task_def: str, context: Dict[str, Any]) -> List[Tuple[str, str]]:
         logger.info("Evolving population using HE Strategy...")
         
+        self._ensure_prompts("he", context)
+        
         result_dir = context.get('result_dir')
         iteration = context.get('iteration')
         knowledge_path = os.path.join(result_dir, "knowledge.json")
@@ -1032,18 +981,11 @@ Output ONLY the updated JSON object (Key-Value pairs).
         
         # --- Phase 1: Exploration (Hypothesis based on KV Knowledge) ---
         if t > 0:
-            explore_prompt = f"""
-Task: "{task_def}"
-
-Current Knowledge:
-{json.dumps(knowledge, indent=2)}
-
-Goal: Generate {t} NEW hypotheses (strategies) for writing a high-quality text.
-- Look for gaps in the Current Knowledge or try a different angle.
-- The hypothesis must be an INSTRUCTION.
-
-Output JSON list of strings.
-"""
+            explore_prompt = self.prompts["explore_prompt"].format(
+                task_def=task_def,
+                knowledge_json=json.dumps(knowledge, indent=2),
+                t=t
+            )
             resp = llm.generate(explore_prompt).strip()
             hypotheses = []
             try:
@@ -1056,14 +998,11 @@ Output JSON list of strings.
             
             for hyp in hypotheses[:t]:
                 constraint = self._get_task_constraint(context)
-                gen_prompt = f"""
-{constraint}
-
-Task: "{task_def}"
-Hypothesis: "{hyp}"
-
-Directive: Generate text based on the hypothesis. Output only text.
-"""
+                gen_prompt = self.prompts["gen_prompt"].format(
+                    constraint=constraint,
+                    task_def=task_def,
+                    hyp=hyp
+                )
                 text = llm.generate(gen_prompt).strip()
                 logic = self._create_logic_json(gen_prompt, "exploration_he", hyp)
                 new_texts.append((text, logic))
@@ -1080,32 +1019,20 @@ Directive: Generate text based on the hypothesis. Output only text.
                 targets.append(sorted_pop[i % len(sorted_pop)])
                 
             for target in targets:
-                grad_prompt = f"""
-Task: "{task_def}"
-
-Previous Generation Results (Context):
-{batch_context}
-
-Target Text:
-"{target['text']}"
-
-Goal: Improve the Target Text.
-Using the insights from the Previous Generation Results (what works vs what fails), provide a Gradient (instruction) to optimize the Target Text.
-
-Note: The score is on a scale of 0.0 to 1.0.
-"""
+                grad_prompt = self.prompts["grad_prompt"].format(
+                    task_def=task_def,
+                    batch_context=batch_context,
+                    target_text=target['text']
+                )
                 gradient = llm.generate(grad_prompt).strip()
                 
                 constraint = self._get_task_constraint(context)
-                update_prompt = f"""
-{constraint}
-
-Task: "{task_def}"
-Original Text: "{target['text']}"
-Feedback: {gradient}
-
-Directive: Rewrite the text to maximize score. Output only text.
-"""
+                update_prompt = self.prompts["update_prompt"].format(
+                    constraint=constraint,
+                    task_def=task_def,
+                    target_text=target['text'],
+                    gradient=gradient
+                )
                 text = llm.generate(update_prompt).strip()
                 logic = self._create_logic_json(update_prompt, "batch_textgrad", gradient)
                 new_texts.append((text, logic))
@@ -1121,6 +1048,7 @@ class EEDStrategy(EvolutionStrategy):
     Config: config/logic/eed.yaml
     """
     def __init__(self):
+        super().__init__()
         self.config = self._load_config()
 
     def _load_config(self) -> Dict[str, Any]:
@@ -1174,25 +1102,14 @@ class EEDStrategy(EvolutionStrategy):
         Generates a "Contrastive Gradient" that explicitly avoids the direction of the existing gradient.
         """
         constraint = self._get_task_constraint(context)
-        prompt = f"""
-{constraint}
-
-Task Definition: "{task_def}"
-
-Current Text:
-"{parent_text}"
-
-Score: {score}
-
-We have already identified one way to improve this text (Standard Gradient):
-"{existing_gradient}"
-
-Goal: Identify a DIFFERENT, CONTRASTIVE weakness or improvement direction.
-We want to explore a diverse optimization path. Do NOT repeat the Standard Gradient.
-Find another angle to critique (e.g. if Standard focused on "clarity", focus on "logic" or "persuasiveness").
-
-Provide a clear, actionable "Contrastive Gradient" (instruction) on how to modify the text.
-"""
+        constraint = self._get_task_constraint(context)
+        prompt = self.prompts["contrastive_gradient_prompt"].format(
+            constraint=constraint,
+            task_def=task_def,
+            parent_text=parent_text,
+            score=score,
+            existing_gradient=existing_gradient
+        )
         return llm.generate(prompt).strip()
 
     def _create_logic_json(self, meta_prompt: str, strategy_type: str, source: str) -> str:
@@ -1205,6 +1122,8 @@ Provide a clear, actionable "Contrastive Gradient" (instruction) on how to modif
 
     def evolve(self, llm: LLMInterface, population: List[Dict[str, Any]], k: int, task_def: str, context: Dict[str, Any]) -> List[Tuple[str, str]]:
         logger.info("Evolving population using EED Strategy...")
+        
+        self._ensure_prompts("eed", context)
         
         # Load Config
         exploit_num = self.config["exploit_sample_num"]
@@ -1255,29 +1174,13 @@ Provide a clear, actionable "Contrastive Gradient" (instruction) on how to modif
             # Generate 2 variations per parent
             for i in range(2):
                 
-                grad_prompt = f"""
-{self._get_task_constraint(context)}
-
-Task Definition: "{task_def}"
-
-Current Text:
-"{parent['text']}"
-
-Score: {parent['score']}
-
-Goal: Critique the Current Text strictly. Identify specific weaknesses that prevent it from achieving a higher score.
-Provide a clear, actionable "Gradient" (instruction) on how to modify the text to improve it.
-
-Note: The score is on a scale of 0.0 to 1.0.
-
-Important: Any improvement suggestion MUST be achievable within the task constraints (e.g. word count).
-
-Constraint 1: The Gradient itself MUST be concise. MAXIMUM {self.config.get('gradient_max_words', 25)} WORDS.
-Constraint 2: The improvement must be feasible within the target text's length constraint (e.g. 19 words).
-Constraint 3: Do NOT provide the full rewritten text. Provide only the instruction/direction.
-Do not ask for "specific examples" or "detailed reasons" if they cannot fit.
-Do not waste words on politeness. Be direct.
-"""
+                grad_prompt = self.prompts["grad_prompt"].format(
+                    constraint=self._get_task_constraint(context),
+                    task_def=task_def,
+                    parent_text=parent['text'],
+                    parent_score=parent['score'],
+                    gradient_max_words=self.config.get('gradient_max_words', 25)
+                )
                 gradient = llm.generate(grad_prompt).strip()
                 
                 # Store the PRIMARY gradient for this parent
@@ -1286,21 +1189,13 @@ Do not waste words on politeness. Be direct.
                     parent_gradients[parent['text']] = gradient
 
                 constraint = self._get_task_constraint(context)
-                update_prompt = f"""
-{constraint}
-
-Task Definition: "{task_def}"
-
-Current Text:
-"{parent['text']}"
-
-Feedback (Gradient) for Improvement:
-{gradient}
-
-Directive:
-Rewrite the Current Text incorporating the feedback above to maximize the score.
-Output ONLY the rewritten text.
-"""
+                constraint = self._get_task_constraint(context)
+                update_prompt = self.prompts["update_prompt"].format(
+                    constraint=constraint,
+                    task_def=task_def,
+                    parent_text=parent['text'],
+                    gradient=gradient
+                )
                 text = self._generate_with_retry(llm, update_prompt, context).strip()
                 logic = self._create_logic_json(update_prompt, "eed_exploit_v2", f"Parent Score:{parent['score']}")
                 new_texts.append((text, logic))
@@ -1338,22 +1233,12 @@ Output ONLY the rewritten text.
             
             # Apply Contrastive Update
             constraint = self._get_task_constraint(context)
-            update_prompt = f"""
-{constraint}
-
-Task Definition: "{task_def}"
-
-Current Text:
-"{parent['text']}"
-
-Alternative Feedback (Contrastive Gradient):
-{contrastive_gradient}
-
-Directive:
-Rewrite the Current Text incorporating this ALTERNATIVE feedback.
-This is a different improvement path than the standard approach.
-Output ONLY the rewritten text.
-"""
+            update_prompt = self.prompts["contrastive_update_prompt"].format(
+                constraint=constraint,
+                task_def=task_def,
+                parent_text=parent['text'],
+                contrastive_gradient=contrastive_gradient
+            )
             text = self._generate_with_retry(llm, update_prompt, context).strip()
             logic = self._create_logic_json(update_prompt, "eed_diversity_contrastive", f"Contrastive to: {existing_gradient[:50]}...")
             
@@ -1365,22 +1250,10 @@ Output ONLY the rewritten text.
         top_half = sorted_pop[:len(sorted_pop)//2]
         top_texts = "\n".join([f"- {p['text'][:100]}..." for p in top_half])
         
-        norm_prompt = f"""
-Task: "{task_def}"
-
-High Scoring Texts (Excerpt):
-{top_texts}
-
-Goal: Analyze these texts to identify the successful pattern.
-1. Identify the "Common Stance" (e.g. SUPPORT or OPPOSE).
-2. Summarize the "Core Arguments" used in these texts.
-
-Output format:
-Common Stance: [Stance]
-Core Arguments:
-- [Argument 1]
-...
-"""
+        norm_prompt = self.prompts["norm_prompt"].format(
+            task_def=task_def,
+            top_texts=top_texts
+        )
         norms = llm.generate(norm_prompt).strip()
         
         # Logic to save/load explored items (Persona + Argument)
@@ -1480,23 +1353,11 @@ Core Arguments:
                  recent_personas = unique_ordered[:50][::-1]
                  existing_personas_str = ", ".join(recent_personas)
                  
-                 persona_gen_prompt = f"""
-Task: "{task_def}"
-Common Stance: {common_stance}
-
-Forbidden Personas (DO NOT USE): {existing_personas_str}
-
-Goal: Generate a NEW, DISTINCT Persona who supports the Common Stance but from a different background/perspective.
-Constraint 1: You must NOT use any persona listed in the "Forbidden Personas" list above.
-Constraint 2: Output MUST be a valid JSON object.
-
-Examples: {{"persona": "Economist"}}, {{"persona": "Single Parent"}}, {{"persona": "Ethicist"}}
-
-Output schema:
-{{
-  "persona": "string"
-}}
-"""
+                 persona_gen_prompt = self.prompts["persona_gen_prompt"].format(
+                     task_def=task_def,
+                     common_stance=common_stance,
+                     existing_personas_str=existing_personas_str
+                 )
                  # Retry loop for uniqueness
                  max_retries = 3
                  for retry in range(max_retries):
@@ -1550,19 +1411,12 @@ Output schema:
              global_args = [item.get('argument', '') for item in explored_items[-20:]]
              avoid_args_str = "\n".join([f"- {a}" for a in global_args if a])
              
-             arg_gen_prompt = f"""
-Task: "{task_def}"
-Common Stance: {common_stance}
-Target Persona: {target_persona}
-
-Explored Arguments (Avoid these):
-{avoid_args_str}
-
-Goal: As the "{target_persona}", identify a specific ARGUMENT or REASON that supports the "{common_stance}".
-This argument should reflect the unique professional or personal experience of a {target_persona}.
-
-Output ONLY the Argument text (1 sentence).
-"""
+             arg_gen_prompt = self.prompts["arg_gen_prompt"].format(
+                 task_def=task_def,
+                 common_stance=common_stance,
+                 target_persona=target_persona,
+                 avoid_args_str=avoid_args_str
+             )
              target_argument = llm.generate(arg_gen_prompt).strip()
              
              # Save this exploration attempt to knowledge later if selected, 
@@ -1575,23 +1429,13 @@ Output ONLY the Argument text (1 sentence).
              
              # 3. Generate Text
              constraint = self._get_task_constraint(context)
-             gen_prompt = f"""
-{constraint}
-
-Task: "{task_def}"
-
-Role: {target_persona}
-Common Stance: {common_stance}
-Target Argument: "{target_argument}"
-
-Requirement:
-1. Write a text supporting the "{common_stance}" from the perspective of a {target_persona}.
-2. Focus specifically on the reason: "{target_argument}".
-3. Adopt the tone and vocabulary appropriate for this persona.
-
-Goal: Create a high-quality text that introduces this specific angle.
-CRITICAL: Output ONLY the text content.
-"""
+             gen_prompt = self.prompts["gen_prompt"].format(
+                 constraint=constraint,
+                 task_def=task_def,
+                 target_persona=target_persona,
+                 common_stance=common_stance,
+                 target_argument=target_argument
+             )
              text = self._generate_with_retry(llm, gen_prompt, context).strip()
              
              logic_dict = {
@@ -1675,6 +1519,7 @@ class GATDStrategy(EvolutionStrategy):
     Designed for stability and diversity in optimization.
     """
     def __init__(self):
+        super().__init__()
         self.config = self._load_config()
 
     def _load_config(self) -> Dict[str, Any]:
@@ -1761,6 +1606,8 @@ class GATDStrategy(EvolutionStrategy):
         
         new_texts = []
         
+        self._ensure_prompts("gatd", context)
+        
         # 1. Elitism
         sorted_pop = sorted(population, key=lambda x: x['score'], reverse=True)
         for i in range(min(elite_num, len(sorted_pop))):
@@ -1780,23 +1627,14 @@ class GATDStrategy(EvolutionStrategy):
             
             constraint = self._get_task_constraint(context)
             
-            crossover_prompt = f"""
-{constraint}
-
-Task: "{task_def}"
-
-Parent 1 (Score: {p1['score']}):
-"{p1['text']}"
-
-Parent 2 (Score: {p2['score']}):
-"{p2['text']}"
-
-Goal: Generate a new text that combines the strengths of both parents.
-Directive:
-Analyze both parents. Identify the strong points of each.
-Synthesize a new text that merges these strengths to create a superior version.
-Output ONLY the new text.
-"""
+            crossover_prompt = self.prompts["crossover_prompt"].format(
+                constraint=constraint,
+                task_def=task_def,
+                p1_score=p1['score'],
+                p1_text=p1['text'],
+                p2_score=p2['score'],
+                p2_text=p2['text']
+            )
             child_text = self._generate_with_retry(llm, crossover_prompt, context)
             new_texts.append((child_text, f"GATD Crossover (Score {p1['score']} & {p2['score']})"))
             gd_count += 1
@@ -1812,37 +1650,22 @@ Output ONLY the new text.
             grad_max_words = self.config.get("gradient_max_words", 25)
             
             # Gradient Step
-            gradient_prompt = f"""
-{constraint}
-
-Task: "{task_def}"
-
-Current Text:
-"{target['text']}"
-
-Score: {target['score']}
-Note: The score is on a scale of 0.0 to 1.0.
-
-Goal: Critique the text and provide a specific instruction (Gradient) to improve it.
-Constraint: The Gradient must be concise ({grad_max_words} words max).
-Output only the Gradient instruction.
-"""
+            gradient_prompt = self.prompts["gradient_prompt"].format(
+                constraint=constraint,
+                task_def=task_def,
+                target_text=target['text'],
+                target_score=target['score'],
+                grad_max_words=grad_max_words
+            )
             gradient = llm.generate(gradient_prompt).strip()
             
             # Update Step
-            update_prompt = f"""
-{constraint}
-
-Task: "{task_def}"
-
-Current Text:
-"{target['text']}"
-
-Feedback: {gradient}
-
-Directive: Rewrite the text to apply the feedback and improve the score.
-Output ONLY the rewritten text.
-"""
+            update_prompt = self.prompts["update_prompt"].format(
+                constraint=constraint,
+                task_def=task_def,
+                target_text=target['text'],
+                gradient=gradient
+            )
             updated_text = self._generate_with_retry(llm, update_prompt, context)
             new_texts.append((updated_text, f"GATD TextGrad:\nGradient: {gradient}"))
             grad_count += 1
@@ -1865,38 +1688,22 @@ Output ONLY the rewritten text.
              history_sample = persona_history[-10:] if len(persona_history) > 10 else persona_history
              history_str = "\n".join([f"- {p}" for p in history_sample])
              
-             persona_prompt = f"""
-Task: "{task_def}"
-
-Goal: Create a specific, creative PERSONA or ROLE that could generate a high-quality text for this task.
-The persona should be distinct from these past/existing personas:
-{history_str}
-
-Output ONLY the persona description (e.g. "A skeptical scientist who...").
-"""
+             persona_prompt = self.prompts["persona_prompt"].format(
+                 task_def=task_def,
+                 history_str=history_str
+             )
              persona = llm.generate(persona_prompt).strip()
              # Simple validation
              if len(persona) > 200: persona = persona[:200]
              
              new_personas.append(persona)
              
-             generation_prompt = f"""
-{constraint}
-
-Task: "{task_def}"
-
-Original Text:
-"{parent['text']}"
-
-Adopt the following Persona:
-"{persona}"
-
-Directive:
-Rewrite the Original Text from the perspective of this persona.
-IMPORTANT: You MUST preserve the core argument and stance (SUPPORT/OPPOSE) of the Original Text.
-Change the tone, style, and vocabulary to match the persona.
-Output ONLY the text.
-"""
+             generation_prompt = self.prompts["generation_prompt"].format(
+                 constraint=constraint,
+                 task_def=task_def,
+                 parent_text=parent['text'],
+                 persona=persona
+             )
              mutated_text = self._generate_with_retry(llm, generation_prompt, context)
              new_texts.append((mutated_text, f"GATD Persona Mutation (Parent Score: {parent['score']}): {persona}"))
              mutation_count += 1
@@ -1911,13 +1718,20 @@ Output ONLY the text.
              if sorted_pop:
                  best = sorted_pop[0]
                  constraint = self._get_task_constraint(context)
-                 fallback_prompt = f"{constraint}\nImprove this text for task '{task_def}':\n{best['text']}\nOutput only text."
+                 fallback_prompt = self.prompts["fallback_prompt"].format(
+                     constraint=constraint,
+                     task_def=task_def,
+                     best_text=best['text']
+                 )
                  t = self._generate_with_retry(llm, fallback_prompt, context)
                  new_texts.append((t, "GATD Fallback Fill"))
              else:
                  # Should not happen if population > 0
                  constraint = self._get_task_constraint(context)
-                 fallback_prompt = f"{constraint}\nGenerate text for task '{task_def}'\nOutput only text."
+                 fallback_prompt = self.prompts["fallback_empty_prompt"].format(
+                     constraint=constraint,
+                     task_def=task_def
+                 )
                  t = self._generate_with_retry(llm, fallback_prompt, context)
                  new_texts.append((t, "GATD Fallback (Empty Pop)"))
 

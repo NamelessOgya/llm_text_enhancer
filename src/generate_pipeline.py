@@ -93,7 +93,7 @@ def main():
                 
                 # 評価ステップ (Evaluation Phase)
                 # パス解決のために evolution_method, population_name を渡す
-                f.write(f"    ./cmd/evaluate_step.sh \"{exp_id}\" \"{i}\" \"{model}\" \"{adapter_type}\" \"{evaluator}\" \"{target}\" \"{evolution_method}\" \"{population_name}\"\n")
+                f.write(f"    ./cmd/evaluate_step.sh \"{exp_id}\" \"{i}\" \"{model}\" \"{adapter_type}\" \"{evaluator}\" \"{target}\" \"{evolution_method}\" \"{population_name}\" \"{task_def}\"\n")
                 
                 f.write("else\n")
                 f.write(f"    echo \"Skipping Iteration {i} (already completed)\"\n")

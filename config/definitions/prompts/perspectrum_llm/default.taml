@@ -1,0 +1,19 @@
+[creation_prompt]
+{constraint}
+
+Task Definition: "{task_def}"
+
+Goal: Generate {k} distinct, high-quality text outputs for the above task.
+
+Requirements:
+1. Generate exactly {k} different text variations.
+2. The texts should vary in style, tone, or perspective.
+3. OUTPUT MUST BE A VALID JSON LIST OF STRINGS. No other text.
+
+Example Output:
+["Text option 1 including details...", "Text option 2 with different focus...", ...]
+
+[single_prompt]
+{constraint}
+Generate a high-quality text for the task: {task_def}
+Output only the text.

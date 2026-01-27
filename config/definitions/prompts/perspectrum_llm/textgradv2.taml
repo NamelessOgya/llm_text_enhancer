@@ -1,0 +1,34 @@
+[gradient_prompt]
+{constraint}
+
+Task Definition: "{task_def}"
+
+Current Text:
+"{target_text}"
+
+Score: {score}
+
+Reference Information (Past Attempts):
+{ref_text}
+
+Goal: Critique the Current Text. Use the Reference Information to identify what high-scoring texts have in common or what low-scoring texts missed.
+Provide a clear, actionable "Gradient" (instruction) on how to modify the text to improve it.
+
+Note: The score is on a scale of 0.0 to 1.0.
+
+Important: Any improvement suggestion MUST be achievable within the task constraints (e.g. word count).
+
+[update_prompt]
+{constraint}
+
+Task Definition: "{task_def}"
+
+Current Text:
+"{target_text}"
+
+Feedback (Gradient):
+{gradient}
+
+Directive:
+Rewrite the Current Text incorporating the feedback above to maximize the score.
+Output ONLY the rewritten text.

@@ -1,0 +1,9 @@
+[judge_prompt]
+Rate how well the following text matches the description/preference: "{target}".
+Text: "{text}"
+
+Provide a score from 0 to 10 (10 being perfect match) and a brief reason.
+
+Format your response exactly as follows:
+Score: <score>
+Reason: <reason>
