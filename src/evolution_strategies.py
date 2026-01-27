@@ -45,30 +45,72 @@ class EvolutionStrategy(ABC):
         """
         pass
 
-    def _get_task_constraint(self, context: Dict[str, Any]) -> str:
+    def _get_max_words(self, context: Dict[str, Any]) -> int:
         """
-        config/task/{task_name}.yaml から制約(max_words)を読み込み、
-        プロンプトに追加する制約文字列を返す。
+        config/task/{task_name}.yaml から max_words 設定を取得する。
+        設定がない場合、または読み込み失敗時は 0 (制限なし) を返す。
         """
         task_name = context.get("task_name")
         if not task_name:
-            return ""
+            return 0
             
         config_path = os.path.join(os.getcwd(), "config", "task", f"{task_name}.yaml")
         if not os.path.exists(config_path):
-            return ""
+            return 0
             
         try:
             with open(config_path, 'r') as f:
                 task_config = yaml.safe_load(f)
                 max_words = task_config.get("max_words")
-                if max_words:
-                    # User request: Unify to "words" for English tasks.
-                    return f"Constraint: The text must be strictly {max_words} words or less."
+                if max_words and isinstance(max_words, int):
+                    return max_words
         except:
             pass
             
+        return 0
+
+    def _get_task_constraint(self, context: Dict[str, Any]) -> str:
+        """
+        プロンプトに追加する制約文字列を返す。
+        """
+        max_words = self._get_max_words(context)
+        if max_words > 0:
+            return f"Constraint: The text must be strictly {max_words} words or less."
         return ""
+
+    def _generate_with_retry(self, llm: LLMInterface, prompt: str, context: Dict[str, Any], max_retries: int = 3) -> str:
+        """
+        制約(max_words)を満たすまでリトライを行う生成メソッド。
+        """
+        max_words = self._get_max_words(context)
+        
+        # 制限がない場合は即座に生成して終了
+        if max_words <= 0:
+            return llm.generate(prompt).strip()
+            
+        current_prompt = prompt
+        
+        for i in range(max_retries):
+            text = llm.generate(current_prompt).strip()
+            
+            # Simple word count (splitting by whitespace)
+            word_count = len(text.split())
+            
+            if word_count <= max_words:
+                return text
+            
+            # Constraint Violated
+            logger.warning(f"Constraint Violation (Attempt {i+1}/{max_retries}): {word_count} words > {max_words}. Retrying...")
+            
+            if i < max_retries - 1:
+                # Add explicit warning to prompt
+                warning = f"\n\nConstraint Violation: The generated text was {word_count} words long.\nThe constraint is STRICTLY {max_words} words or less.\nRewrite the text to be shorter."
+                current_prompt += warning
+                
+        # Final attempt failed, return the last result anyway (or empty?)
+        # Returning logic usually expects a string.
+        logger.error(f"Failed to satisfy constraint after {max_retries} retries. returning last output.")
+        return text
 
     def generate_initial(self, llm: LLMInterface, k: int, task_def: str, context: Dict[str, Any] = None) -> List[Tuple[str, str]]:
         """
@@ -147,7 +189,8 @@ class GeneticAlgorithmStrategy(EvolutionStrategy):
         logger.info("Evolving population using Genetic Algorithm Strategy (Text Optimization)...")
         
         # スコア順にソート (降順)
-        sorted_pop = sorted(population, key=lambda x: x['score'], reverse=True)
+        # スコア順にソート (降順) - 同点時はランダム
+        sorted_pop = sorted(population, key=lambda x: (x['score'], random.random()), reverse=True)
         
         # エリート選択 (上位20%, 最低1個)
         num_elite = max(1, int(k * 0.2))
@@ -201,13 +244,34 @@ class TextGradStrategy(EvolutionStrategy):
     1. 現状のテキストとスコアから「なぜスコアがこの値なのか」「どうすれば上がるか」を分析(Gradient Generation)。
     2. その分析に基づいてテキストをリライトする(Update)。
     """
+    def __init__(self):
+        self.config = self._load_config()
+
+    def _load_config(self) -> Dict[str, Any]:
+        config_path = os.path.join(os.getcwd(), "config", "logic", "textgrad.yaml")
+        default_config = {
+            "elite_sample_num": 1
+        }
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, 'r') as f:
+                    user_config = yaml.safe_load(f)
+                    default_config.update(user_config)
+            except Exception as e:
+                logger.warning(f"Failed to load textgrad.yaml: {e}")
+        return default_config
+
     def evolve(self, llm: LLMInterface, population: List[Dict[str, Any]], k: int, task_def: str, context: Dict[str, Any]) -> List[Tuple[str, str]]:
         logger.info("Evolving population using TextGrad Strategy (Text Optimization)...")
         
+        elite_num = self.config.get("elite_sample_num", 1)
+
         # エリートは保存
-        sorted_pop = sorted(population, key=lambda x: x['score'], reverse=True)
-        best_individual = sorted_pop[0]
-        new_texts = [(best_individual['text'], "Elitism: Best individual preserved")]
+        sorted_pop = sorted(population, key=lambda x: (x['score'], random.random()), reverse=True)
+        new_texts = []
+        for i in range(min(elite_num, len(sorted_pop))):
+             best_individual = sorted_pop[i]
+             new_texts.append((best_individual['text'], f"Elitism: Rank {i+1} preserved (Score: {best_individual['score']})"))
         
         # 残りの枠を勾配更新で生成
         idx = 0
@@ -321,6 +385,11 @@ Output ONLY the rewritten text.
 class TextGradV2Strategy(EvolutionStrategy):
     """
     TextGrad v2: 過去の入力/スコア履歴をサンプリングして補足情報として加える。
+
+    [NOTE: EED v1.1時点では使用停止]
+    EEDのExploitフェーズでは、他個体の参照によりスタンス矛盾などの不安定さが生じたため、
+    本来のNormal TextGrad (V1) ロジックに戻されました。
+    このクラスは将来的な研究・改善のためにコードベースに残されています。
     """
     def __init__(self):
         self.config = self._load_config()
@@ -1088,6 +1157,32 @@ class EEDStrategy(EvolutionStrategy):
             # Empty vocabulary or other issue
             return [0.0] * len(candidates)
 
+    def _generate_contrastive_gradient(self, llm: LLMInterface, parent_text: str, score: float, task_def: str, existing_gradient: str, context: Dict[str, Any]) -> str:
+        """
+        Generates a "Contrastive Gradient" that explicitly avoids the direction of the existing gradient.
+        """
+        constraint = self._get_task_constraint(context)
+        prompt = f"""
+{constraint}
+
+Task Definition: "{task_def}"
+
+Current Text:
+"{parent_text}"
+
+Score: {score}
+
+We have already identified one way to improve this text (Standard Gradient):
+"{existing_gradient}"
+
+Goal: Identify a DIFFERENT, CONTRASTIVE weakness or improvement direction.
+We want to explore a diverse optimization path. Do NOT repeat the Standard Gradient.
+Find another angle to critique (e.g. if Standard focused on "clarity", focus on "logic" or "persuasiveness").
+
+Provide a clear, actionable "Contrastive Gradient" (instruction) on how to modify the text.
+"""
+        return llm.generate(prompt).strip()
+
     def _create_logic_json(self, meta_prompt: str, strategy_type: str, source: str) -> str:
         data = {
             "meta_prompt": meta_prompt,
@@ -1120,7 +1215,7 @@ class EEDStrategy(EvolutionStrategy):
              diversity_num = int(k * ratio_div)
              explore_num = k - exploit_num - diversity_num
 
-        sorted_pop = sorted(population, key=lambda x: x['score'], reverse=True)
+        sorted_pop = sorted(population, key=lambda x: (x['score'], random.random()), reverse=True)
         
         new_texts = [] # List[Tuple[text, logic]]
 
@@ -1137,28 +1232,17 @@ class EEDStrategy(EvolutionStrategy):
         exploit_num = max(0, exploit_num - len(new_texts)) 
         
 
-        # Instantiate TextGradV2 for usage
-        tgv2 = TextGradV2Strategy()
-        
-        # --- 1. Exploit Phase (Modified to use TextGrad V2) ---
+        # Dictionary to store standard gradients for each parent text (key: text_hash or text)
+        parent_gradients = {} 
+
+        # --- 1. Exploit Phase (Normal TextGrad - No History Reference) ---
         # Top 3 parents -> Generate variations
         parents_exploit = sorted_pop[:3]
 
-        # Load History once for Efficiency
-        history = tgv2._load_history(result_dir=context.get('result_dir'), current_iter=context.get('iteration', 1))
-        current_history = [(p['text'], p['score']) for p in population]
-        history.extend(current_history)
-        
         for parent in parents_exploit:
             # Generate 2 variations per parent
             for i in range(2):
                 
-                # Sample references for V2
-                references = tgv2._sample_history_gumbel(history, tgv2.config["ref_sampling_num"], tgv2.config["ref_sampling_weight"])
-                ref_text = ""
-                for ii, (txt, scr) in enumerate(references):
-                    ref_text += f"- Ref {ii+1} (Score: {scr}): {txt[:200]}...\n"
-
                 grad_prompt = f"""
 {self._get_task_constraint(context)}
 
@@ -1169,9 +1253,6 @@ Current Text:
 
 Score: {parent['score']}
 
-Reference Information (Past Attempts):
-{ref_text}
-
 Goal: Critique the Current Text strictly. Identify specific weaknesses that prevent it from achieving a higher score.
 Provide a clear, actionable "Gradient" (instruction) on how to modify the text to improve it.
 
@@ -1181,6 +1262,11 @@ Important: Any improvement suggestion MUST be achievable within the task constra
 """
                 gradient = llm.generate(grad_prompt).strip()
                 
+                # Store the PRIMARY gradient for this parent
+                # We only store the FIRST one generated if multiple passes (i=0)
+                if i == 0:
+                    parent_gradients[parent['text']] = gradient
+
                 constraint = self._get_task_constraint(context)
                 update_prompt = f"""
 {constraint}
@@ -1197,7 +1283,7 @@ Directive:
 Rewrite the Current Text incorporating the feedback above to maximize the score.
 Output ONLY the rewritten text.
 """
-                text = llm.generate(update_prompt).strip()
+                text = self._generate_with_retry(llm, update_prompt, context).strip()
                 logic = self._create_logic_json(update_prompt, "eed_exploit_v2", f"Parent Score:{parent['score']}")
                 new_texts.append((text, logic))
                 
@@ -1211,118 +1297,51 @@ Output ONLY the rewritten text.
              else:
                 new_texts.append(("Fallback", self._create_logic_json("N/A", "fallback", "error")))
 
-        exploit_texts_only = [t[0] for t in new_texts]
-
-        # --- 2. Diversity Phase (Novelty Refinement) ---
-        # Instead of mutating elites, we find the "rough diamonds" (novel but potentially low score) 
-        # from the population and refine them using TextGrad.
-        
-        # Step 1: Identify the "Dominant Norm" (Top 1 Text)
-        dominant_text = sorted_pop[0]['text']
-
-        # Step 2: Select the "Most Novel" candidates
-        # We look at the lower half or non-elites to find something distinct.
-        # Let's consider candidates from rank 2 onwards to avoid just picking the runner-up.
-        candidates = sorted_pop[1:]
+        # --- 2. Diversity Phase (Contrastive Gradient) ---
+        # Generate 'diversity_num' samples by applying CONTRASTIVE gradients to the exploit parents.
         
         diversity_new_texts = []
         
-        if candidates and diversity_num > 0:
-            # Format candidates for LLM selection
-            cand_str = ""
-            for i, c in enumerate(candidates):
-                cand_str += f"Candidate {i}: \"{c['text'][:200]}...\"\n"
-
-            # Select N distinct candidates (iteratively or batch? Batch is easier for now)
-            # Actually, let's select iteratively to ensure we pick distinct ones.
-            # For simplicity in this implementation, we pick the Top-K distinct ones based on LLM judgement.
+        # We iterate through the same parents used in Exploit
+        # If diversity_num is large, we circle back.
+        
+        div_idx = 0
+        while len(diversity_new_texts) < diversity_num:
+            parent = parents_exploit[div_idx % len(parents_exploit)]
+            div_idx += 1
             
-            novelty_prompt = f"""
-Task Definition: "{task_def}"
-
-Dominant Perspective (Highest Score):
-"{dominant_text}"
-
-Candidate Perspectives:
-{cand_str}
-
-Goal: We want to diversify the gene pool.
-Identify the top {diversity_num} candidates that represent the MOST DISTINCT perspectives compared to the Dominant Perspective.
-We are looking for "Hidden Gems" - arguments that are semantically different, even if their current phrasing is imperfect.
-
-Output ONLY the indices of the selected candidates (e.g. "0, 3").
-"""
-            novelty_indices_str = llm.generate(novelty_prompt).strip()
+            # Retrieve the standard gradient used in Exploit phase
+            existing_gradient = parent_gradients.get(parent['text'], "General improvement")
             
-            # Parse indices
-            selected_indices = []
-            try:
-                import re
-                nums = re.findall(r'\d+', novelty_indices_str)
-                selected_indices = [int(n) for n in nums[:diversity_num]]
-            except:
-                pass
-                
-            # Fallback if selection failed
-            if not selected_indices:
-                selected_indices = list(range(min(len(candidates), diversity_num)))
-
-            selected_candidates = [candidates[i] for i in selected_indices if i < len(candidates)]
-
-            # Step 3: Apply TextGrad Refinement to selected candidates
-            for parent in selected_candidates:
-                # TextGrad Logic (Same as Exploit, but with "Preserve Perspective" instruction)
-                
-                # Sample references (optional, but good for context)
-                history = tgv2._load_history(result_dir=context.get('result_dir'), current_iter=context.get('iteration', 1))
-                references = tgv2._sample_history_gumbel(history, tgv2.config["ref_sampling_num"], tgv2.config["ref_sampling_weight"])
-                ref_text = ""
-                for ii, (txt, scr) in enumerate(references):
-                    ref_text += f"- Ref {ii+1} (Score: {scr}): {txt[:200]}...\n"
-
-                grad_prompt = f"""
-{self._get_task_constraint(context)}
-
-Task Definition: "{task_def}"
-
-Current Text (Selected for Novelty):
-"{parent['text']}"
-
-Dominant Perspective (For Context - DO NOT COPY):
-"{dominant_text}"
-
-Score: {parent['score']}
-
-Goal: Improving this text's persuasiveness and clarity while MAINTAINING its unique perspective.
-The goal is NOT to make it look like the Dominant Perspective. The goal is to make THIS specific argument as strong as possible.
-
-Critique the text and provide a specific instruction (Gradient) to improve it.
-"""
-                gradient = llm.generate(grad_prompt).strip()
-                
-                constraint = self._get_task_constraint(context)
-                update_prompt = f"""
+            # Generate Contrastive Gradient
+            contrastive_gradient = self._generate_contrastive_gradient(
+                llm, parent['text'], parent['score'], task_def, existing_gradient, context
+            )
+            
+            # Apply Contrastive Update
+            constraint = self._get_task_constraint(context)
+            update_prompt = f"""
 {constraint}
 
 Task Definition: "{task_def}"
 
-Original Text:
+Current Text:
 "{parent['text']}"
 
-Improvement Instruction:
-{gradient}
+Alternative Feedback (Contrastive Gradient):
+{contrastive_gradient}
 
 Directive:
-Rewrite the text to improve it based on the instruction.
-Ensure you KEEP the original unique angle/argument, just make it better.
+Rewrite the Current Text incorporating this ALTERNATIVE feedback.
+This is a different improvement path than the standard approach.
 Output ONLY the rewritten text.
 """
-                text = llm.generate(update_prompt).strip()
-                logic = self._create_logic_json(update_prompt, "eed_novelty_refining", f"Refining Novelty (Parent Score:{parent['score']})")
-                diversity_new_texts.append((text, logic))
+            text = self._generate_with_retry(llm, update_prompt, context).strip()
+            logic = self._create_logic_json(update_prompt, "eed_diversity_contrastive", f"Contrastive to: {existing_gradient[:50]}...")
+            
+            diversity_new_texts.append((text, logic))
 
-        new_texts.extend(diversity_new_texts)
-        
+        new_texts.extend(diversity_new_texts)        
         # --- 3. Explore Phase ---
         # Top half samples -> Verbalize "Norm"
         top_half = sorted_pop[:len(sorted_pop)//2]
@@ -1555,7 +1574,7 @@ Requirement:
 Goal: Create a high-quality text that introduces this specific angle.
 CRITICAL: Output ONLY the text content.
 """
-             text = llm.generate(gen_prompt).strip()
+             text = self._generate_with_retry(llm, gen_prompt, context).strip()
              
              logic_dict = {
                  "meta_prompt": gen_prompt,
