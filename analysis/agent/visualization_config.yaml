@@ -27,6 +27,7 @@ colors:
     hg: "#e377c2"        # Pink
     he: "#7f7f7f"        # Gray
     baseline: "#bcbd22"  # Olive
+    gatd: "#00CED1"      # DarkTurquoise
 
 output:
   formats: ["png"]
