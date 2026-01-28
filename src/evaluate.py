@@ -5,7 +5,7 @@ import os
 # Ensure src is in path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from evaluator_pipeline import main
+from evaluation_pipeline import main
 
 if __name__ == "__main__":
     main()

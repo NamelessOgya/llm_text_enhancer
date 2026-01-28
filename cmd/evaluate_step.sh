@@ -16,7 +16,12 @@ TASK_DEFINITION=${9:-""}
 # Get absolute path to project root
 PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 PYTHONpath="$PROJECT_ROOT/src"
-RESULT_DIR="$PROJECT_ROOT/result/$EXPERIMENT_ID/$POPULATION_NAME/$EVOLUTION_METHOD/$EVALUATOR_TYPE"
+# RESULT_DIR is optionally passed as 10th arg
+RESULT_DIR=${10:-}
+
+if [ -z "$RESULT_DIR" ]; then
+    RESULT_DIR="$PROJECT_ROOT/result/$EXPERIMENT_ID/$POPULATION_NAME/$EVOLUTION_METHOD/$EVALUATOR_TYPE"
+fi
 
 echo "Running Evaluation Step for $EXPERIMENT_ID ($EVOLUTION_METHOD) Iteration $ITERATION (Evaluator: $EVALUATOR_TYPE | Pop: $POPULATION_NAME)"
 
@@ -30,4 +35,5 @@ python3 "$PROJECT_ROOT/src/evaluate.py" \
     --target-preference "$TARGET_PREFERENCE" \
     --evolution-method "$EVOLUTION_METHOD" \
     --population-name "$POPULATION_NAME" \
-    --task-definition "$TASK_DEFINITION"
+    --task-definition "$TASK_DEFINITION" \
+    --result-dir "$RESULT_DIR"

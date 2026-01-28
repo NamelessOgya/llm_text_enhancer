@@ -52,10 +52,9 @@ def main():
             dataset = [{"_dummy": "dummy"}]
             
     logger.info(f"Generating initial population '{args.population_name}' for {len(dataset)} items.")
-
+    
     # Base output dir
-    # result/[experiment_id]/initial_population/[population_name]
-    base_output_dir = os.path.join(os.getcwd(), "result", args.experiment_id, "initial_population", args.population_name)
+    base_output_dir = get_initial_population_path(os.getcwd(), args.experiment_id, args.population_name)
     os.makedirs(base_output_dir, exist_ok=True)
     
     # Save generic info if needed? 

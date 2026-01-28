@@ -25,6 +25,8 @@ def load_experiments(config_path: str) -> List[Dict[str, str]]:
             print(f"Error reading CSV: {e}")
             return []
 
+from generation.filesystem import get_experiment_result_path, get_initial_population_path
+
 def generate_script_content(experiments: List[Dict[str, str]], project_root: str) -> str:
     """
     実行用シェルスクリプトの内容を生成する。
@@ -58,12 +60,14 @@ def generate_script_content(experiments: List[Dict[str, str]], project_root: str
         evolution_method = exp.get('evolution_method', 'ga')
         ensemble_ratios = exp.get('ensemble_ratios', '')
         population_name = exp.get('population_name', 'default')
+        # Append hyperparameters to population_name to avoid overwriting results
+        population_name = f"{population_name}_p{pop_size}_g{max_gen}"
         
         lines.append(f"# Experiment: {exp_id} ({evolution_method}) [Pop: {population_name}]")
         lines.append(f"echo \"Starting Experiment: {exp_id} with {evolution_method} (Pop: {population_name})\"")
 
         # Initial Population Setup
-        initial_pop_dir = os.path.join(project_root, "result", exp_id, "initial_population", population_name)
+        initial_pop_dir = get_initial_population_path(project_root, exp_id, population_name)
         
         lines.append(f"if [ ! -d \"{initial_pop_dir}\" ]; then")
         lines.append(f"    echo \"Initializing Population: {population_name} for {exp_id}\"")
@@ -80,17 +84,19 @@ def generate_script_content(experiments: List[Dict[str, str]], project_root: str
         
         # Iteration Loop
         for i in range(max_gen):
-            base_iter_dir = os.path.join(project_root, "result", exp_id, population_name, evolution_method, evaluator)
+            # USE CENTRALIZED PATH GENERATION
+            base_iter_dir = get_experiment_result_path(project_root, exp_id, population_name, evolution_method, evaluator)
+            
             check_file = os.path.join(base_iter_dir, f"row_0/iter{i}/metrics.json")
             
             lines.append(f"if [ ! -f \"{check_file}\" ]; then")
             lines.append(f"    echo \"Running Iteration {i}\"")
             
-            # Generate Step
-            lines.append(f"    ./cmd/generate_next_step.sh \"{exp_id}\" \"{i}\" \"{pop_size}\" \"{model}\" \"{adapter_type}\" \"{task_def}\" \"{evolution_method}\" \"{ensemble_ratios}\" \"{evaluator}\" \"{population_name}\"")
+            # Generate Step - Pass FULL PATHS to avoid logic duplication in shell script
+            lines.append(f"    ./cmd/generate_next_step.sh \"{exp_id}\" \"{i}\" \"{pop_size}\" \"{model}\" \"{adapter_type}\" \"{task_def}\" \"{evolution_method}\" \"{ensemble_ratios}\" \"{evaluator}\" \"{population_name}\" \"{base_iter_dir}\"")
             
-            # Evaluate Step
-            lines.append(f"    ./cmd/evaluate_step.sh \"{exp_id}\" \"{i}\" \"{model}\" \"{adapter_type}\" \"{evaluator}\" \"{target}\" \"{evolution_method}\" \"{population_name}\" \"{task_def}\"")
+            # Evaluate Step - Pass FULL PATHS
+            lines.append(f"    ./cmd/evaluate_step.sh \"{exp_id}\" \"{i}\" \"{model}\" \"{adapter_type}\" \"{evaluator}\" \"{target}\" \"{evolution_method}\" \"{population_name}\" \"{task_def}\" \"{base_iter_dir}\"")
             
             lines.append("else")
             lines.append(f"    echo \"Skipping Iteration {i} (already completed)\"")

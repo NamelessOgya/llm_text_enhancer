@@ -138,3 +138,51 @@ def save_generation_results(
         creation_file = os.path.join(logic_dir, f"creation_prompt_{i}.txt")
         with open(creation_file, 'w') as f:
             f.write(logic)
+
+def get_experiment_result_path(
+    project_root: str, 
+    experiment_id: str, 
+    population_name: str = None, 
+    method: str = None, 
+    evaluator: str = None
+) -> str:
+    """
+    実験結果のディレクトリパスを一元管理して返す。
+    
+    Args:
+        project_root (str): プロジェクトルートパス
+        experiment_id (str): 実験ID
+        population_name (str, optional): Population名
+        method (str, optional): 手法名 (ga, gatd, textgrad, eed, etc.)
+        evaluator (str, optional): 評価器名 (llm, rule, etc.)
+        
+    Returns:
+        str: 構築された絶対パス
+    """
+    path = os.path.join(project_root, "result", experiment_id)
+    
+    if population_name:
+        path = os.path.join(path, population_name)
+    
+    if method:
+        path = os.path.join(path, method) 
+        
+    if evaluator:
+        path = os.path.join(path, evaluator)
+        
+    return path
+
+def get_initial_population_path(project_root: str, experiment_id: str, population_name: str) -> str:
+    """
+    初期集団のディレクトリパスを一元管理して返す。
+    result/[experiment_id]/initial_population/[population_name]
+    
+    Args:
+        project_root (str): プロジェクトルート
+        experiment_id (str): 実験ID
+        population_name (str): Population名
+        
+    Returns:
+        str: 初期集団ディレクトリの絶対パス
+    """
+    return os.path.join(project_root, "result", experiment_id, "initial_population", population_name)

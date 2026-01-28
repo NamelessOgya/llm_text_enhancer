@@ -102,5 +102,12 @@ def analyze_crossover_performance(base_dir):
         print(f"{iter_num:<5} | {len(scores):<5} | {np.mean(scores):.3f}")
 
 if __name__ == "__main__":
-    base_dir = "result/perspectrum_v1.1/run1/gatd/perspectrum_llm"
-    analyze_crossover_performance(base_dir)
+    import argparse
+    parser = argparse.ArgumentParser(description="Analyze GATD Crossover Performance")
+    parser.add_argument("--base-dir", required=True, help="Base directory containing row_* subdirectories")
+    args = parser.parse_args()
+    
+    if not os.path.exists(args.base_dir):
+        print(f"Directory not found: {args.base_dir}")
+    else:
+        analyze_crossover_performance(args.base_dir)

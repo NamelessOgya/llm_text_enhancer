@@ -105,5 +105,12 @@ def analyze_mutation_performance(run_dir):
             print(f"[{iter_name}] No Mutation individuals found.")
             
 if __name__ == "__main__":
-    target_dir = "result/perspectrum_v1.1/run1/gatd/perspectrum_llm/row_0"
-    analyze_mutation_performance(target_dir)
+    import argparse
+    parser = argparse.ArgumentParser(description="Analyze GATD Mutation Performance")
+    parser.add_argument("--target-dir", required=True, help="Path to row directory, e.g., result/exp/pop/method/eval/row_0")
+    args = parser.parse_args()
+    
+    if not os.path.exists(args.target_dir):
+        print(f"Directory not found: {args.target_dir}")
+    else:
+        analyze_mutation_performance(args.target_dir)

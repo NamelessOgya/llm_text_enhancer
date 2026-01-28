@@ -18,9 +18,13 @@ POPULATION_NAME=${10:-default}
 PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 PYTHONpath="$PROJECT_ROOT/src"
 
-# Define result dir relative to project root (Split by Logic AND Evaluator)
-# Added POPULATION_NAME to path
-RESULT_DIR="$PROJECT_ROOT/result/$EXPERIMENT_ID/$POPULATION_NAME/$EVOLUTION_METHOD/$EVALUATOR_TYPE"
+# RESULT_DIR is optionally passed as 11th arg
+RESULT_DIR=${11:-}
+
+if [ -z "$RESULT_DIR" ]; then
+    # Fallback to legacy construction if not provided
+    RESULT_DIR="$PROJECT_ROOT/result/$EXPERIMENT_ID/$POPULATION_NAME/$EVOLUTION_METHOD/$EVALUATOR_TYPE"
+fi
 
 # Define Initial Population Dir
 INITIAL_POP_DIR="$PROJECT_ROOT/result/$EXPERIMENT_ID/initial_population/$POPULATION_NAME"

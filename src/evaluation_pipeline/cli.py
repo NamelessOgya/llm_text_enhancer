@@ -44,18 +44,31 @@ def main():
     parser.add_argument("--evolution-method", default="ga")
     parser.add_argument("--population-name", default="default")
     parser.add_argument("--task-definition", help="タスク定義ファイルパス (Optional)")
+    parser.add_argument("--result-dir", help="結果出力ディレクトリ (Optional)")
     args = parser.parse_args()
 
-    base_result_dir = os.path.join("result", args.experiment_id, args.population_name, args.evolution_method, args.evaluator_type)
+    if args.result_dir:
+        base_result_dir = args.result_dir
+    else:
+        # Fallback (though calls from pipeline.sh should have it now)
+        base_result_dir = os.path.join("result", args.experiment_id, args.population_name, args.evolution_method, args.evaluator_type)
     
     # row_* ディレクトリを検索
     row_dirs = glob.glob(os.path.join(base_result_dir, "row_*"))
     if not row_dirs:
+        # Check if we are inside a row dir or just flat structure (should not happen in new pipeline but for safety)
         if os.path.exists(os.path.join(base_result_dir, f"iter{args.iteration}")):
-            row_dirs = [base_result_dir]
+            # It seems base_result_dir IS the row dir? Unlikely given the glob above.
+            # But kept for safety from original code logic
+             row_dirs = [base_result_dir]
         else:
-            logger.warning(f"No iteration directory found in {base_result_dir}")
-            return
+             # Check if it was row_0 missing or iteration missing?
+             # Just warn if no row dirs found
+             if args.iteration > 0:
+                 # Iter 0 might not have rows set up if failed initial gen?
+                 pass
+             logger.warning(f"No row directories found in {base_result_dir}")
+             return
 
     # Evaluator準備
     context = {}

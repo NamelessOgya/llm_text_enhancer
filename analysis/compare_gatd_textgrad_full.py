@@ -30,10 +30,23 @@ def get_final_stats(method_dir):
     return max_scores, mean_scores
 
 def main():
-    base_dir = "result/perspectrum_v1.1/run1"
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Compare GATD and TextGrad")
+    parser.add_argument("--base-dir", required=True, help="Base directory containing method subdirectories, e.g. result/exp_id/pop_name")
+    args = parser.parse_args()
+
+    base_dir = args.base_dir
     gatd_dir = os.path.join(base_dir, "gatd", "perspectrum_llm")
     tg_dir = os.path.join(base_dir, "textgrad", "perspectrum_llm")
     
+    if not os.path.exists(gatd_dir):
+        print(f"Error: GATD directory not found: {gatd_dir}")
+        return
+    if not os.path.exists(tg_dir):
+        print(f"Error: TextGrad directory not found: {tg_dir}")
+        return
+
     g_max, g_mean = get_final_stats(gatd_dir)
     t_max, t_mean = get_final_stats(tg_dir)
     
