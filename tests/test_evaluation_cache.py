@@ -8,9 +8,9 @@ from unittest.mock import MagicMock
 # Add src to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-from evaluation.cache import EvaluationCache
-from evaluation.llm_evaluator import LLMEvaluator
-from evaluation.perspectrum_evaluator import PerspectrumLLMEvaluator
+from evaluator.cache import EvaluationCache
+from evaluator.llm_evaluator import LLMEvaluator
+from evaluator.perspectrum.judge import PerspectrumLLMEvaluator
 from llm.interface import LLMInterface
 
 class TestEvaluationCache(unittest.TestCase):

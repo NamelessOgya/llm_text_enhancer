@@ -76,7 +76,7 @@ def get_rule_evaluator(rule_type: str) -> Optional[Evaluator]:
     elif rule_type == "rule_meteor":
         return MeteorRuleEvaluator()
     elif rule_type == "perspectrum_rule":
-        from .perspectrum_evaluator import PerspectrumRuleEvaluator
+        from .perspectrum.rules import PerspectrumRuleEvaluator
         return PerspectrumRuleEvaluator()
     return None
 

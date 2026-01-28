@@ -7,15 +7,15 @@ sys.path.append(os.path.join(os.getcwd(), "src"))
 
 from strategies import get_evolution_strategy
 from strategies.base import EvolutionStrategy
-from strategies.ga import GeneticAlgorithmStrategy
-from strategies.textgrad import TextGradStrategy
-from strategies.textgrad_v2 import TextGradV2Strategy
-from strategies.trajectory import TrajectoryStrategy
-from strategies.demonstration import DemonstrationStrategy
-from strategies.ensemble import EnsembleStrategy
-from strategies.he import HEStrategy
-from strategies.eed import EEDStrategy
-from strategies.gatd import GATDStrategy
+from strategies.ga.strategy import GeneticAlgorithmStrategy
+from strategies.textgrad.strategy import TextGradStrategy
+from strategies.textgrad.strategy_v2 import TextGradV2Strategy
+from strategies.trajectory.strategy import TrajectoryStrategy
+from strategies.demonstration.strategy import DemonstrationStrategy
+from strategies.ensemble.strategy import EnsembleStrategy
+from strategies.he.strategy import HEStrategy
+from strategies.eed.strategy import EEDStrategy
+from strategies.gatd.strategy import GATDStrategy
 
 class TestStrategyLoading(unittest.TestCase):
     def test_load_strategies(self):
@@ -39,9 +39,9 @@ class TestStrategyLoading(unittest.TestCase):
                 print(f"Successfully loaded {name} as {expected_class.__name__}")
 
     def test_fallback(self):
-        strategy = get_evolution_strategy("unknown_strategy")
-        self.assertIsInstance(strategy, GeneticAlgorithmStrategy)
-        print("Successfully validated fallback behavior")
+        with self.assertRaises(ValueError):
+            get_evolution_strategy("unknown_strategy")
+        print("Successfully validated ValueError behavior")
 
 if __name__ == "__main__":
     unittest.main()

@@ -5,8 +5,10 @@ import yaml
 from typing import List, Dict, Tuple, Any
 
 from llm.interface import LLMInterface
-from .base import EvolutionStrategy
-from .eed_phases import run_exploit_phase, run_diversity_phase, run_explore_phase
+from ..base import EvolutionStrategy
+from .phases.exploit import run_exploit_phase
+from .phases.diversity import run_diversity_phase
+from .phases.explore import run_explore_phase
 
 logger = logging.getLogger(__name__)
 
@@ -77,15 +79,18 @@ class EEDStrategy(EvolutionStrategy):
         
         # --- 2. Diversity Phase ---
         logger.debug(f"Phase 2: Diversity ({diversity_num} items)")
+        # run_diversity_phase(strategy, llm, population, k_diversity, task_def, context, parent_gradients)
         diversity_texts = run_diversity_phase(
-            self, llm, sorted_pop, parents_exploit, parent_gradients, diversity_num, task_def, context
+            self, llm, sorted_pop, diversity_num, task_def, context, parent_gradients
         )
         new_texts.extend(diversity_texts)
 
         # --- 3. Explore Phase ---
         logger.debug(f"Phase 3: Explore ({explore_num} items)")
+        # run_explore_phase(strategy, llm, k_explore, task_def, context, top_texts)
+        top_texts_str = [p['text'] for p in sorted_pop[:5]]
         explore_texts = run_explore_phase(
-            self, llm, sorted_pop, explore_num, task_def, context
+            self, llm, explore_num, task_def, context, top_texts_str
         )
         new_texts.extend(explore_texts)
         

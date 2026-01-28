@@ -8,7 +8,7 @@ from typing import List, Dict, Tuple, Any
 import numpy as np # Need numpy for gumbel
 
 from llm.interface import LLMInterface
-from .base import EvolutionStrategy
+from ..base import EvolutionStrategy
 
 logger = logging.getLogger(__name__)
 

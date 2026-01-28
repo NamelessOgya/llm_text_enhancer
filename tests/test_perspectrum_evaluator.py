@@ -7,7 +7,8 @@ import json
 # Add src to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-from evaluation.perspectrum_evaluator import PerspectrumLLMEvaluator
+from evaluator.perspectrum.rules import PerspectrumRuleEvaluator
+from evaluator.perspectrum.judge import PerspectrumLLMEvaluator
 from llm.interface import LLMInterface
 
 class TestPerspectrumLLMEvaluator(unittest.TestCase):
@@ -20,8 +21,8 @@ class TestPerspectrumLLMEvaluator(unittest.TestCase):
         self.evaluator = PerspectrumLLMEvaluator(self.mock_llm)
         
         # Mock the rule checker to always pass to focus on LLM logic
-        # We need to bypass the actual _check_rules logic which checks stanc/wordcount
-        self.evaluator._check_rules = MagicMock(return_value=(1.0, ""))
+        self.evaluator._rule_checker = MagicMock()
+        self.evaluator._rule_checker.evaluate.return_value = (1.0, "")
         
         # Mock cache to prevent file IO and ensure isolation
         self.evaluator.cache = MagicMock()

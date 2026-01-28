@@ -12,15 +12,19 @@ except ImportError:
 
 def calculate_novelty(candidates: List[str], distinct_set: List[str]) -> List[float]:
     """
+    候補テキストの新規性 (Novelty) を計算する。
+    
     Novelty(x, K) = 1 - max_{k in K}(similarity(x, k))
-    similarity: 3-gram cosine similarity
+    similarityには文字n-gram (n=3) のコサイン類似度を使用する。
     
     Args:
-        candidates: List of new candidate texts
-        distinct_set: List of existing texts to compare against (population + history)
+        candidates (List[str]): 評価対象の新規候補テキストのリスト
+        distinct_set (List[str]): 比較対象となる既存テキスト群（過去の個体やknowledge baseなど）
         
     Returns:
-        List of novelty scores (0.0 to 1.0)
+        List[float]: 各候補の新規性スコア (0.0 〜 1.0)。
+                     1.0に近いほど既存テキストと類似していないことを示す。
+                     scikit-learnが利用できない場合やエラー時はデフォルト値(1.0または0.0)を返す。
     """
     if not distinct_set or not candidates or CountVectorizer is None:
         return [1.0] * len(candidates)

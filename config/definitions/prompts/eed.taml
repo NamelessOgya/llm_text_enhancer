@@ -17,7 +17,7 @@ Find another angle to critique (e.g. if Standard focused on "clarity", focus on 
 
 Provide a clear, actionable "Contrastive Gradient" (instruction) on how to modify the text.
 
-[grad_prompt]
+[exploit_gradient_prompt]
 {constraint}
 
 Task Definition: "{task_def}"
@@ -25,7 +25,7 @@ Task Definition: "{task_def}"
 Current Text:
 "{parent_text}"
 
-Score: {parent_score}
+Score: {score}
 
 Goal: Critique the Current Text strictly. Identify specific weaknesses that prevent it from achieving a higher score.
 Provide a clear, actionable "Gradient" (instruction) on how to modify the text to improve it.
@@ -117,19 +117,15 @@ This argument should reflect the unique professional or personal experience of a
 
 Output ONLY the Argument text (1 sentence).
 
-[gen_prompt]
+[explore_gen_prompt]
 {constraint}
 
 Task: "{task_def}"
 
 Role: {target_persona}
-Common Stance: {common_stance}
-Target Argument: "{target_argument}"
+Norms/Context: {norms}
 
-Requirement:
-1. Write a text supporting the "{common_stance}" from the perspective of a {target_persona}.
-2. Focus specifically on the reason: "{target_argument}".
-3. Adopt the tone and vocabulary appropriate for this persona.
+Goal: Write a text supporting the task from the perspective of {target_persona}, while offering a unique argument that deviates from the "Norms" if possible.
+Adopt the tone and vocabulary appropriate for this persona.
 
-Goal: Create a high-quality text that introduces this specific angle.
 CRITICAL: Output ONLY the text content.

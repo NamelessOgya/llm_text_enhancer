@@ -1,18 +1,29 @@
 from .base import EvolutionStrategy
-from .ga import GeneticAlgorithmStrategy
-from .textgrad import TextGradStrategy
-from .textgrad_v2 import TextGradV2Strategy
-from .trajectory import TrajectoryStrategy
-from .demonstration import DemonstrationStrategy
-from .ensemble import EnsembleStrategy
-from .he import HEStrategy
-from .eed import EEDStrategy
-from .gatd import GATDStrategy
+from .ga.strategy import GeneticAlgorithmStrategy
+from .textgrad.strategy import TextGradStrategy
+from .textgrad.strategy_v2 import TextGradV2Strategy
+from .trajectory.strategy import TrajectoryStrategy
+from .demonstration.strategy import DemonstrationStrategy
+from .ensemble.strategy import EnsembleStrategy
+from .he.strategy import HEStrategy
+from .eed.strategy import EEDStrategy
+from .gatd.strategy import GATDStrategy
 
-def get_evolution_strategy(method_name: str) -> EvolutionStrategy:
+def get_evolution_strategy(strategy_name: str) -> EvolutionStrategy:
     """
-    指定されたメソッド名の進化戦略インスタンスを返すファクトリ関数。
+    Factory function to retrieve a specific evolution strategy instance.
+    
+    Args:
+        strategy_name (str): Name of the strategy (e.g., 'ga', 'textgrad', 'ensemble').
+        
+    Returns:
+        EvolutionStrategy: Instance of the requested strategy.
+        
+    Raises:
+        ValueError: If the strategy_name is unknown.
     """
+    strategy_name = strategy_name.lower()
+    
     strategies = {
         "ga": GeneticAlgorithmStrategy,
         "textgrad": TextGradStrategy,
@@ -25,10 +36,7 @@ def get_evolution_strategy(method_name: str) -> EvolutionStrategy:
         "gatd": GATDStrategy
     }
     
-    strategy_class = strategies.get(method_name.lower())
-    
-    if strategy_class:
-        return strategy_class()
-    
-    # Default fallback
-    return GeneticAlgorithmStrategy()
+    if strategy_name not in strategies:
+        raise ValueError(f"Unknown evolution strategy: {strategy_name}")
+        
+    return strategies[strategy_name]()
