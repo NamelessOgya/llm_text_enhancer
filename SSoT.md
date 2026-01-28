@@ -81,4 +81,4 @@
 
 ## 6. コーディング規約
 - **コメント**: コード内のコメントは必ず日本語で書くこと。
-- **アーキテクチャ**: 新しい進化戦略を追加する際は、`EvolutionStrategy` クラスを継承し、`src/evolution_strategies.py` に実装すること。併せて `config/definitions/prompts/` に対応するTAMLを作成すること。
+- **アーキテクチャ**: 新しい進化戦略を追加する際は、`src/strategies/base.py` の `EvolutionStrategy` クラスを継承し、`src/strategies/` 配下に新しいモジュールとして実装すること。また、`src/strategies/__init__.py` のファクトリに登録し、`config/definitions/prompts/` に対応するTAMLを作成すること。

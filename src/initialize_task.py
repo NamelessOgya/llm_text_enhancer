@@ -7,7 +7,7 @@ from typing import List, Dict, Tuple
 
 from utils import setup_logging, save_token_usage, load_content, parse_taml_ref, load_dataset
 from llm.interface import LLMInterface
-from evolution_strategies import get_evolution_strategy
+from strategies import get_evolution_strategy
 
 logger = logging.getLogger(__name__)
 
