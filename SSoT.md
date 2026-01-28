@@ -32,7 +32,7 @@
   - `config/`: 実験設定、タスク定義、プロンプト定義(TAML)
   - `result/`:
     └── [実験設定ID]/   # Experiment ID
-        └── [集団名]/   # Population Name (Run ID)
+        └── [集団名]_p[K]_g[N]/ # Population Name (Run ID) + Hyperparams
             └── [進化戦略]/   # Strategy (ga, textgrad, etc.)
                 └── [評価器]/ # Evaluator (llm, rule_*)
                     ├── row_[N]/ # データセットの行ごと (Row)
@@ -82,3 +82,4 @@
 ## 6. コーディング規約
 - **コメント**: コード内のコメントは必ず日本語で書くこと。
 - **アーキテクチャ**: 新しい進化戦略を追加する際は、`src/strategies/base.py` の `EvolutionStrategy` クラスを継承し、`src/strategies/` 配下に新しいモジュールとして実装すること。また、`src/strategies/__init__.py` のファクトリに登録し、`config/definitions/prompts/` に対応するTAMLを作成すること。
+- **ディレクトリパス**: 結果出力等のパス構築には必ず `src/generation/filesystem.py` の定数関数（`get_experiment_result_path`等）を使用し、ハードコードを避けること。
