@@ -8,6 +8,7 @@ from typing import List, Dict, Tuple
 from utils import setup_logging, save_token_usage, load_content, parse_taml_ref, load_dataset
 from llm.interface import LLMInterface
 from strategies import get_evolution_strategy
+from generation.filesystem import get_initial_population_path
 
 logger = logging.getLogger(__name__)
 

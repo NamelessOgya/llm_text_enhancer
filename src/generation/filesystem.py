@@ -144,7 +144,8 @@ def get_experiment_result_path(
     experiment_id: str, 
     population_name: str = None, 
     method: str = None, 
-    evaluator: str = None
+    evaluator: str = None,
+    logic_config: str = None
 ) -> str:
     """
     実験結果のディレクトリパスを一元管理して返す。
@@ -155,6 +156,7 @@ def get_experiment_result_path(
         population_name (str, optional): Population名
         method (str, optional): 手法名 (ga, gatd, textgrad, eed, etc.)
         evaluator (str, optional): 評価器名 (llm, rule, etc.)
+        logic_config (str, optional): ロジック設定ファイルパス (例: config/logic/gatd.yaml)
         
     Returns:
         str: 構築された絶対パス
@@ -165,7 +167,15 @@ def get_experiment_result_path(
         path = os.path.join(path, population_name)
     
     if method:
-        path = os.path.join(path, method) 
+        # logic_configがある場合、methodディレクトリの下ではなく、method名自体を変えるか
+        # あるいはmethodの下にconfig名ディレクトリを掘るか。
+        # 今回は method/{config_name_without_ext} とする。
+        if logic_config and os.path.basename(logic_config):
+            config_basename = os.path.splitext(os.path.basename(logic_config))[0]
+            # methodの下にconfig名ディレクトリを配置
+            path = os.path.join(path, method, config_basename)
+        else:
+            path = os.path.join(path, method) 
         
     if evaluator:
         path = os.path.join(path, evaluator)

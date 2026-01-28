@@ -16,10 +16,30 @@ class GATDStrategy(EvolutionStrategy):
     """
     def __init__(self):
         super().__init__()
-        self.config = self._load_config()
+        # self.config will be loaded in evolve to support context-based config
 
-    def _load_config(self) -> Dict[str, Any]:
-        config_path = os.path.join(os.getcwd(), "config", "logic", "gatd.yaml")
+    def _load_config(self, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        config_path = None
+        if context and "logic_config" in context and context["logic_config"]:
+             raw_config = context["logic_config"]
+             # If absolute path, use as is
+             if os.path.isabs(raw_config):
+                 config_path = raw_config
+             else:
+                 # Check if it exists as relative path (e.g. config/logic/foo.yaml)
+                 if os.path.exists(raw_config):
+                      config_path = os.path.abspath(raw_config)
+                 else:
+                      # Try under config/logic/
+                      possible_path = os.path.join(os.getcwd(), "config", "logic", raw_config)
+                      if os.path.exists(possible_path):
+                           config_path = possible_path
+                      else:
+                           config_path = raw_config # Let it fail later or specific log
+        else:
+             # Default fallback
+             config_path = os.path.join(os.getcwd(), "config", "logic", "gatd.yaml")
+             
         default_config = {
             "elite_sample_num": 2,
             "gd_sample_num": 4,      # Genetic Diversity (Crossover)
@@ -27,19 +47,28 @@ class GATDStrategy(EvolutionStrategy):
             "mutation_sample_num": 2,# Persona Mutation
             "gradient_max_words": 25
         }
-        if os.path.exists(config_path):
+        
+        if config_path and os.path.exists(config_path):
             try:
                 with open(config_path, 'r') as f:
                     user_config = yaml.safe_load(f)
-                    default_config.update(user_config)
+                    if user_config:
+                        default_config.update(user_config)
+                    logger.info(f"Loaded GATD config from {config_path}")
             except Exception as e:
-                logger.warning(f"Failed to load gatd.yaml: {e}")
+                logger.warning(f"Failed to load GATD config from {config_path}: {e}")
+        elif context and "logic_config" in context:
+             logger.warning(f"Specified logic_config not found: {context['logic_config']}")
+             
         return default_config
 
     def evolve(self, llm: LLMInterface, population: List[Dict[str, Any]], k: int, task_def: str, context: Dict[str, Any]) -> List[Tuple[str, str]]:
         logger.info("Evolving population using GATD Strategy (Refactored)...")
         
         self._ensure_prompts("gatd", context)
+        
+        # Load config dynamically based on context
+        self.config = self._load_config(context)
         
         elite_num = self.config.get("elite_sample_num", 2)
         gd_num = self.config.get("gd_sample_num", 4)

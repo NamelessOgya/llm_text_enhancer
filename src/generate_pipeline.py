@@ -62,6 +62,7 @@ def generate_script_content(experiments: List[Dict[str, str]], project_root: str
         population_name = exp.get('population_name', 'default')
         # Append hyperparameters to population_name to avoid overwriting results
         population_name = f"{population_name}_p{pop_size}_g{max_gen}"
+        logic_config = exp.get('logic_config', '')
         
         lines.append(f"# Experiment: {exp_id} ({evolution_method}) [Pop: {population_name}]")
         lines.append(f"echo \"Starting Experiment: {exp_id} with {evolution_method} (Pop: {population_name})\"")
@@ -85,7 +86,7 @@ def generate_script_content(experiments: List[Dict[str, str]], project_root: str
         # Iteration Loop
         for i in range(max_gen):
             # USE CENTRALIZED PATH GENERATION
-            base_iter_dir = get_experiment_result_path(project_root, exp_id, population_name, evolution_method, evaluator)
+            base_iter_dir = get_experiment_result_path(project_root, exp_id, population_name, evolution_method, evaluator, logic_config)
             
             check_file = os.path.join(base_iter_dir, f"row_0/iter{i}/metrics.json")
             
@@ -93,7 +94,7 @@ def generate_script_content(experiments: List[Dict[str, str]], project_root: str
             lines.append(f"    echo \"Running Iteration {i}\"")
             
             # Generate Step - Pass FULL PATHS to avoid logic duplication in shell script
-            lines.append(f"    ./cmd/generate_next_step.sh \"{exp_id}\" \"{i}\" \"{pop_size}\" \"{model}\" \"{adapter_type}\" \"{task_def}\" \"{evolution_method}\" \"{ensemble_ratios}\" \"{evaluator}\" \"{population_name}\" \"{base_iter_dir}\"")
+            lines.append(f"    ./cmd/generate_next_step.sh \"{exp_id}\" \"{i}\" \"{pop_size}\" \"{model}\" \"{adapter_type}\" \"{task_def}\" \"{evolution_method}\" \"{ensemble_ratios}\" \"{evaluator}\" \"{population_name}\" \"{base_iter_dir}\" \"{logic_config}\"")
             
             # Evaluate Step - Pass FULL PATHS
             lines.append(f"    ./cmd/evaluate_step.sh \"{exp_id}\" \"{i}\" \"{model}\" \"{adapter_type}\" \"{evaluator}\" \"{target}\" \"{evolution_method}\" \"{population_name}\" \"{task_def}\" \"{base_iter_dir}\"")

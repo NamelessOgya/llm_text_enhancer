@@ -26,6 +26,8 @@ if [ -z "$RESULT_DIR" ]; then
     RESULT_DIR="$PROJECT_ROOT/result/$EXPERIMENT_ID/$POPULATION_NAME/$EVOLUTION_METHOD/$EVALUATOR_TYPE"
 fi
 
+LOGIC_CONFIG=${12:-}
+
 # Define Initial Population Dir
 INITIAL_POP_DIR="$PROJECT_ROOT/result/$EXPERIMENT_ID/initial_population/$POPULATION_NAME"
 
@@ -42,4 +44,5 @@ python3 "$PROJECT_ROOT/src/generate.py" \
     --result-dir "$RESULT_DIR" \
     --evolution-method "$EVOLUTION_METHOD" \
     --ensemble-ratios "$ENSEMBLE_RATIOS" \
-    --initial-population-dir "$INITIAL_POP_DIR"
+    --initial-population-dir "$INITIAL_POP_DIR" \
+    --logic-config "$LOGIC_CONFIG"

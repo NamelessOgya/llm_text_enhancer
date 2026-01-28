@@ -23,6 +23,7 @@ def main():
     parser.add_argument("--evolution-method", default="ga", help="進化手法")
     parser.add_argument("--ensemble-ratios", help="アンサンブル比率")
     parser.add_argument("--initial-population-dir", help="初期集団をロードするディレクトリ")
+    parser.add_argument("--logic-config", help="ロジック設定yamlファイルパス")
     args = parser.parse_args()
 
     # タスク定義とデータセットのロード
@@ -69,6 +70,9 @@ def main():
             "result_dir": dirs["row_dir"],
             "iteration": args.iteration
         }
+        if args.logic_config:
+            context["logic_config"] = args.logic_config
+            
         try:
             task_def_basename = os.path.basename(args.task_definition)
             if task_def_basename.startswith("task_") and task_def_basename.endswith(".taml"):
