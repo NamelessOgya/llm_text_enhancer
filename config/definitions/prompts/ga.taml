@@ -10,3 +10,20 @@ Directive:
 Apply the following mutation to the text: {m_type}.
 Ensure the result is a valid output for the task.
 Output ONLY the improved text.
+
+[crossover_prompt]
+{constraint}
+
+Task: "{task_def}"
+
+Parent 1 (Score: {p1_score}):
+"{p1_text}"
+
+Parent 2 (Score: {p2_score}):
+"{p2_text}"
+
+Goal: Generate a new text that combines the strengths of both parents.
+Directive:
+Analyze both parents. Identify the strong points of each.
+Synthesize a new text that merges these strengths to create a superior version.
+Output ONLY the new text.
