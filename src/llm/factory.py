@@ -3,6 +3,7 @@ from .interface import LLMInterface
 from .openai_adapter import OpenAIAdapter
 from .dummy_adapter import DummyAdapter
 from .gemini_adapter import GeminiAdapter
+from .azure_openai_adapter import AzureOpenAIAdapter
 
 def get_llm_adapter(adapter_type: str, model_name: str) -> LLMInterface:
     """
@@ -24,5 +25,7 @@ def get_llm_adapter(adapter_type: str, model_name: str) -> LLMInterface:
         return GeminiAdapter(model_name=model_name)
     elif adapter_type == "openai":
         return OpenAIAdapter(model_name=model_name)
+    elif adapter_type == "azure_openai":
+        return AzureOpenAIAdapter(model_name=model_name)
     else:
         raise ValueError(f"Unknown adapter type: {adapter_type}")
