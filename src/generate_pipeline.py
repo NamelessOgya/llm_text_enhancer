@@ -108,14 +108,18 @@ def generate_script_content(experiments: List[Dict[str, str]], project_root: str
 
 def main():
     parser = argparse.ArgumentParser(description="実験パイプライン生成スクリプト")
-    parser.add_argument("--config", default="config/experiments.csv", help="実験設定CSVファイルへのパス")
+    parser.add_argument("config_positional", nargs='?', help="実験設定CSVファイルへのパス")
+    parser.add_argument("--config", help="実験設定CSVファイルへのパス")
     parser.add_argument("--output", default="run_pipeline.sh", help="生成される実行用シェルスクリプトのファイル名")
     args = parser.parse_args()
 
-    # プロジェクトルートの解決
+    # Determine config path: Positional > --config > Default
+    config_path = args.config_positional or args.config or "config/experiments.csv"
+    
+    # Resolving project root
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     
-    experiments = load_experiments(args.config)
+    experiments = load_experiments(config_path)
     if not experiments:
         return
 
@@ -125,7 +129,7 @@ def main():
         f.write(script_content)
 
     os.chmod(args.output, 0o755)
-    print(f"Pipeline script generated at {args.output}")
+    print(f"Pipeline script generated at {args.output} from {config_path}")
 
 if __name__ == "__main__":
     main()
