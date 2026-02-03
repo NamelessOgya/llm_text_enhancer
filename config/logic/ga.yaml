@@ -1,0 +1,4 @@
+# Genetic Algorithm (GA) Configuration
+elite_ratio: 0.2
+crossover_ratio: 0.6
+mutation_ratio: 0.2

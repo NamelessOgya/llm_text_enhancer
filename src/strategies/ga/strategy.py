@@ -1,5 +1,7 @@
-import logging
+import os
 import random
+import logging
+import yaml
 from typing import List, Dict, Tuple, Any
 
 from llm.interface import LLMInterface
@@ -15,6 +17,27 @@ class GeneticAlgorithmStrategy(EvolutionStrategy):
     エリート(高スコアのテキスト)を保存し、それを親として「言い換え」「拡張」「要約」「トーン変更」などの操作を行い、
     新しいテキスト変形を生成する。
     """
+    def __init__(self):
+        super().__init__()
+        self.config = self._load_config()
+
+    def _load_config(self) -> Dict[str, Any]:
+        config_path = os.path.join(os.getcwd(), "config", "logic", "ga.yaml")
+        default_config = {
+            "elite_ratio": 0.2,
+            "crossover_ratio": 0.6,
+            "mutation_ratio": 0.2
+        }
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, 'r') as f:
+                    user_config = yaml.safe_load(f)
+                    if user_config:
+                        default_config.update(user_config)
+            except Exception as e:
+                logger.warning(f"Failed to load ga.yaml: {e}")
+        return default_config
+
     def evolve(self, llm: LLMInterface, population: List[Dict[str, Any]], k: int, task_def: str, context: Dict[str, Any]) -> List[Tuple[str, str]]:
         logger.info("Evolving population using Genetic Algorithm Strategy (Text Optimization)...")
         
@@ -23,8 +46,9 @@ class GeneticAlgorithmStrategy(EvolutionStrategy):
         # スコア順にソート (降順) - 同点時はランダム
         sorted_pop = sorted(population, key=lambda x: (x['score'], random.random()), reverse=True)
         
-        # 1. Elitism (20%)
-        num_elite = max(1, int(k * 0.2))
+        # 1. Elitism
+        elite_ratio = self.config.get("elite_ratio", 0.2)
+        num_elite = max(1, int(k * elite_ratio))
         elites = [p for p in sorted_pop[:num_elite]]
         
         new_texts = []
@@ -32,17 +56,9 @@ class GeneticAlgorithmStrategy(EvolutionStrategy):
         for elite in elites:
             new_texts.append((elite['text'], "Elitism: Preserved from previous generation"))
             
-        # 2. Crossover (60%)
-        # Calculate remaining slots
-        remaining = k - len(new_texts)
-        # We want mutation to be roughly 20% of k, so crossover gets the rest up to that point
-        # Target mutation count
-        target_mutation = int(k * 0.2)
-        # Therefore crossover target is remaining - target_mutation
-        # But we must ensure at least some crossover if possible? 
-        # User said "Elite 20%, Mutation 20%". So Crossover is 60%.
-        
-        num_crossover = int(k * 0.6)
+        # 2. Crossover
+        crossover_ratio = self.config.get("crossover_ratio", 0.6)
+        num_crossover = int(k * crossover_ratio)
         
         # Adjust if rounding errors cause overflow/underflow
         # Prioritize Elite > Crossover > Mutation or Elite > Mutation > Crossover?
@@ -77,12 +93,12 @@ class GeneticAlgorithmStrategy(EvolutionStrategy):
             child = self._generate_with_retry(llm, prompt, context)
             new_texts.append((child, f"GA Crossover (Score {p1['score']} & {p2['score']})"))
 
-        # 3. Mutation (Remaining ~20%)
+        # 3. Mutation
         while len(new_texts) < k:
             # 親をエリートからランダム選択 (既存ロジック踏襲) or Rank Selection?
             # 既存はエリートから選択していたが、多様性のためにはRank Selectionの方が良いかも？
             # しかし元の実装はエリートから選択していた。
-            # "親をエリートからランダム選択" -> line 38
+            # "親をエリートからランダム選択"
             # 元の実装を活かすならエリートから。
             
             parent = random.choice(elites)
