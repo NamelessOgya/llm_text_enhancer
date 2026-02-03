@@ -131,11 +131,32 @@ pip install -r requirements.txt
 # データセットの準備 (必要に応じて)
 python3 src/prepare_tldr_data.py --dataset tldr
 
-# パイプライン生成
+### 2. パイプラインの生成
+
+`src/generate_pipeline.py` を実行して、実験実行用のシェルスクリプトを生成します。
+
+```bash
+# デフォルト (config/experiments.csv を使用)
 python3 src/generate_pipeline.py
 
-# 実験実行
+# 特定の設定ファイルを指定する場合
+python3 src/generate_pipeline.py config/custom_task.csv
+
+# 出力ファイル名を指定する場合
+python3 src/generate_pipeline.py --output run_custom.sh
+```
+
+**デフォルト値:**
+- 入力設定ファイル: `config/experiments.csv`
+- 出力ファイル名: `run_pipeline.sh`
+
+### 3. 実験実行
+
+生成されたスクリプトを実行します。
+
+```bash
 ./run_pipeline.sh
+```
 
 # データ集計
 python3 src/aggregate_results.py

@@ -1,0 +1,2 @@
+experiment_id,max_generations,population_size,model_name,adapter_type,evaluator_type,task_definition,target_preference,evolution_method,ensemble_ratios,population_name,logic_config
+custom_task01,5,5,gemini-2.0-flash-lite,gemini,llm,config/definitions/targets/target_mail_emergency.taml,config/definitions/targets/target_mail_emergency.taml,gatd,,run_1,gatd.yaml

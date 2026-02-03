@@ -1,13 +1,3 @@
----
-type: target
-description: "METEOR score against the reference perspective."
----
-# Evaluation Strategy
-Compare the generated perspective with the reference perspective using METEOR score.
-
-# Target Perspective
-{{ summary }}
-
 [ref]
 dataset: data/perspectrum.csv
 target: summary
