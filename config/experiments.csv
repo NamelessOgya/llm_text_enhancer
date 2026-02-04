@@ -8,3 +8,12 @@ perspectrum_v1.1,15,10,gemini-2.0-flash-lite,gemini,perspectrum_llm,config/defin
 perspectrum_v1.1,15,10,gemini-2.0-flash-lite,gemini,perspectrum_llm,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,ga,,run1,
 perspectrum_v1.1,15,10,gemini-2.0-flash-lite,gemini,perspectrum_llm,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,ga,,run2,
 perspectrum_v1.1,15,10,gemini-2.0-flash-lite,gemini,perspectrum_llm,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,ga,,run3,
+perspectrum_v1.1_rule,15,10,gemini-2.0-flash-lite,gemini,perspectrum_rule,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,gatd,,run1,gatd.yaml
+perspectrum_v1.1_rule,15,10,gemini-2.0-flash-lite,gemini,perspectrum_rule,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,textgrad,,run1,textgrad.yaml
+perspectrum_v1.1_rule,15,10,gemini-2.0-flash-lite,gemini,perspectrum_rule,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,gatd,,run2,gatd.yaml
+perspectrum_v1.1_rule,15,10,gemini-2.0-flash-lite,gemini,perspectrum_rule,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,textgrad,,run2,textgrad.yaml
+perspectrum_v1.1_rule,15,10,gemini-2.0-flash-lite,gemini,perspectrum_rule,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,gatd,,run3,gatd.yaml
+perspectrum_v1.1_rule,15,10,gemini-2.0-flash-lite,gemini,perspectrum_rule,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,textgrad,,run3,textgrad.yaml
+perspectrum_v1.1_rule,15,10,gemini-2.0-flash-lite,gemini,perspectrum_rule,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,ga,,run1,
+perspectrum_v1.1_rule,15,10,gemini-2.0-flash-lite,gemini,perspectrum_rule,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,ga,,run2,
+perspectrum_v1.1_rule,15,10,gemini-2.0-flash-lite,gemini,perspectrum_rule,config/definitions/tasks/task_perspectrum.taml,config/definitions/targets/target_perspectrum.taml,ga,,run3,
