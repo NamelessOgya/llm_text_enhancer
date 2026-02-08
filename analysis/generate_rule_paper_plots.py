@@ -67,18 +67,26 @@ def load_data():
                 continue
             
             run_id = parts[run_idx]
-            # Strategy is the folder right after run_id
-            strategy = parts[run_idx + 1]
+            # Strategy is the folder right before perspectrum_rule
+            try:
+                p_idx = parts.index("perspectrum_rule")
+                strategy = parts[p_idx - 1]
+            except ValueError:
+                strategy = parts[run_idx + 1]
                  
             row_id = parts[-1]
             
             # Map strategy names to display names
             if strategy == 'ga':
                 display_strategy = 'GA'
-            elif strategy in ['gatd', 'tagd']:
+            elif strategy == 'gatd':
                 display_strategy = 'TAGD'
+            elif strategy == 'gatd_4td':
+                display_strategy = 'TAGD (4TD)'
             elif strategy == 'textgrad':
                 display_strategy = 'TD'
+            elif strategy == 'tagd':
+                display_strategy = 'TAGD'
             else:
                 display_strategy = strategy.upper()
 

@@ -85,8 +85,12 @@ def load_data():
             
             if run_idx != -1:
                 run_id = parts[run_idx]
-                # Strategy is the folder right after run_id
-                strategy = parts[run_idx + 1]
+                # Strategy is the folder right before perspectrum_llm
+                try:
+                    p_idx = parts.index("perspectrum_llm")
+                    strategy = parts[p_idx - 1]
+                except ValueError:
+                    strategy = parts[run_idx + 1]
             else:
                  # Last resort fallback if path prevents finding run somehow
                  continue
@@ -96,10 +100,14 @@ def load_data():
             # Map strategy names to display names if needed
             if strategy == 'ga':
                 display_strategy = 'GA'
-            elif strategy in ['gatd', 'tagd']:
+            elif strategy == 'gatd':
                 display_strategy = 'TAGD'
+            elif strategy == 'gatd_4td':
+                display_strategy = 'TAGD (4TD)'
             elif strategy == 'textgrad':
                 display_strategy = 'TD'
+            elif strategy == 'tagd':
+                display_strategy = 'TAGD'
             else:
                 display_strategy = strategy.upper()
 
