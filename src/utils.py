@@ -110,26 +110,46 @@ def load_content(input_value: str) -> str:
     入力がファイルパス(.tamlなど)であればその内容を読み込み、
     そうでなければそのまま文字列として返す。
     
+    【厳格化】パスらしい文字列（.taml、/、または .txt 等を含む）が渡されたのに
+    ファイルが存在しない場合は、FileNotFoundError を投げます。
+    
     Args:
         input_value (str): ファイルパス または 直接のテキスト内容
         
     Returns:
         str: 解決されたコンテンツテキスト
+        
+    Raises:
+        FileNotFoundError: パスとして認識されたがファイルが存在しない場合
     """
-    # 入力が .taml ファイルパスと思われる場合
-    if input_value.strip().endswith(".taml") and os.path.exists(input_value):
-        return load_taml(input_value)
+    stripped_val = input_value.strip()
     
-    # 通常のテキストファイルの場合もサポート (汎用性)
-    if os.path.exists(input_value) and os.path.isfile(input_value):
-        try:
-            with open(input_value, 'r', encoding='utf-8') as f:
-                return f.read().strip()
-        except Exception:
-            # パスっぽいが読めない、あるいは長すぎてパス制限に引っかかる文字列など
-            pass
+    # パスとして扱うかどうかの判定 (拡張子やスラッシュの存在)
+    is_path_like = (
+        stripped_val.endswith(".taml") or 
+        stripped_val.endswith(".txt") or 
+        stripped_val.endswith(".yaml") or 
+        stripped_val.endswith(".yml") or
+        "/" in stripped_val or
+        "\\" in stripped_val
+    )
+
+    if is_path_like:
+        if os.path.exists(stripped_val):
+            if stripped_val.endswith(".taml"):
+                return load_taml(stripped_val)
+            else:
+                try:
+                    with open(stripped_val, 'r', encoding='utf-8') as f:
+                        return f.read().strip()
+                except Exception as e:
+                    raise IOError(f"Failed to read file: {stripped_val}. Error: {e}")
+        else:
+            # パスらしいがファイルが存在しない場合は異常として扱う
+            raise FileNotFoundError(f"Content file not found at: {stripped_val}. "
+                                   f"If this was intended as raw text, avoid using path indicators like '.' or '/'.")
             
-    # ファイルでない、または見つからない場合は生のテキストとして扱う
+    # パスらしくない、かつファイルでもない場合は生のテキストとして扱う
     return input_value
 
 def load_dataset(file_path: str) -> List[Dict[str, str]]:
