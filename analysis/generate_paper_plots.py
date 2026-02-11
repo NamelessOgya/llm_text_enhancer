@@ -396,6 +396,133 @@ def plot_stagnation_breaking(df):
     plt.savefig(os.path.join(OUTPUT_DIR, "tagd_stagnation_breakers.png"))
     plt.close()
 
+def plot_stagnation_breaking_split(df):
+    """
+    世代を半分に分け、それぞれの期間における停滞打開回数を可視化する。
+    """
+    print("Generating Stagnation Analysis (Split by Generations)...")
+    
+    tagd_df = df[df['Strategy'] == 'TAGD'].copy()
+    
+    if tagd_df.empty:
+        print("No TAGD data for stagnation analysis.")
+        return
+
+    # 1. Max Score per Iter
+    iter_stats = tagd_df.groupby(['Run', 'Row', 'Iteration'])['Score'].max().reset_index()
+    iter_stats = iter_stats.sort_values(['Run', 'Row', 'Iteration'])
+    
+    # 2. Shift for previous score
+    iter_stats['PrevScore'] = iter_stats.groupby(['Run', 'Row'])['Score'].shift(1)
+    
+    # Filter for Iteration > 0 (Iter 0 has no prev)
+    improvement_steps = iter_stats[(iter_stats['Iteration'] > 0) & (iter_stats['Score'] > iter_stats['PrevScore'])]
+    
+    max_iter = tagd_df['Iteration'].max()
+    mid_point = max_iter // 2
+    
+    def get_phase(iter_num):
+        return "First Half" if iter_num <= mid_point else "Second Half"
+        
+    breaker_data = []
+    
+    for _, row in improvement_steps.iterrows():
+        run, r_id, iter_num, max_score = row['Run'], row['Row'], row['Iteration'], row['Score']
+        phase = get_phase(iter_num)
+        
+        winners = tagd_df[
+            (tagd_df['Run'] == run) & 
+            (tagd_df['Row'] == r_id) & 
+            (tagd_df['Iteration'] == iter_num) & 
+            (tagd_df['Score'] == max_score)
+        ]
+        
+        for logic in winners['Logic'].unique():
+            breaker_data.append({"Logic": logic, "Phase": phase})
+            
+    if not breaker_data:
+        print("No stagnation breaking events found.")
+        return
+
+    breaker_df = pd.DataFrame(breaker_data)
+    
+    # Count occurrences by Logic and Phase
+    count_df = breaker_df.groupby(['Logic', 'Phase']).size().reset_index(name='Count')
+    
+    plt.figure(figsize=(12, 6))
+    sns.barplot(data=count_df, x='Logic', y='Count', hue='Phase', hue_order=["First Half", "Second Half"], palette='viridis')
+    plt.title(f'Stagnation Breaking Events: First Half (iter 1-{mid_point}) vs Second Half (iter {mid_point+1}-{max_iter})')
+    plt.ylabel('Count of Breakout Events')
+    plt.xlabel('Logic Type')
+    plt.legend(title="Generation Phase")
+    plt.tight_layout()
+    plt.savefig(os.path.join(OUTPUT_DIR, "tagd_stagnation_breakers_split.png"))
+    plt.close()
+
+def plot_stagnation_breaking_by_score(df):
+    """
+    改善前のスコア帯ごとに、どのロジックが停滞を打破したか。
+    """
+    print("Generating Stagnation Analysis (by Score bands)...")
+    
+    tagd_df = df[df['Strategy'] == 'TAGD'].copy()
+    
+    if tagd_df.empty:
+        print("No TAGD data for stagnation analysis.")
+        return
+
+    # 1. Max Score per Iter
+    iter_stats = tagd_df.groupby(['Run', 'Row', 'Iteration'])['Score'].max().reset_index()
+    iter_stats = iter_stats.sort_values(['Run', 'Row', 'Iteration'])
+    
+    # 2. Shift for previous score
+    iter_stats['PrevScore'] = iter_stats.groupby(['Run', 'Row'])['Score'].shift(1)
+    
+    # Filter for Iteration > 0
+    improvement_steps = iter_stats[(iter_stats['Iteration'] > 0) & (iter_stats['Score'] > iter_stats['PrevScore'])]
+    
+    # Define score bins
+    # For paper, scores are typically 0.5-1.0. 
+    # Let's use 0.1 intervals.
+    bins = [0.0, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    labels = ["<0.5", "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0"]
+    
+    improvement_steps['ScoreBand'] = pd.cut(improvement_steps['PrevScore'], bins=bins, labels=labels, include_lowest=True)
+        
+    breaker_data = []
+    
+    for _, row in improvement_steps.iterrows():
+        run, r_id, iter_num, max_score, band = row['Run'], row['Row'], row['Iteration'], row['Score'], row['ScoreBand']
+        
+        winners = tagd_df[
+            (tagd_df['Run'] == run) & 
+            (tagd_df['Row'] == r_id) & 
+            (tagd_df['Iteration'] == iter_num) & 
+            (tagd_df['Score'] == max_score)
+        ]
+        
+        for logic in winners['Logic'].unique():
+            breaker_data.append({"Logic": logic, "ScoreBand": str(band)})
+            
+    if not breaker_data:
+        print("No stagnation breaking events found.")
+        return
+
+    breaker_df = pd.DataFrame(breaker_data)
+    
+    # Count occurrences by Logic and ScoreBand
+    count_df = breaker_df.groupby(['Logic', 'ScoreBand']).size().reset_index(name='Count')
+    
+    plt.figure(figsize=(12, 6))
+    sns.barplot(data=count_df, x='ScoreBand', y='Count', hue='Logic', order=labels, palette='viridis')
+    plt.title('Stagnation Breaking Events by Improvement Source Score')
+    plt.ylabel('Count of Breakout Events')
+    plt.xlabel('Score Band (Before Improvement)')
+    plt.legend(title="Logic Type", bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout()
+    plt.savefig(os.path.join(OUTPUT_DIR, "tagd_stagnation_breakers_by_score.png"))
+    plt.close()
+
 def main():
     ensure_dir(OUTPUT_DIR)
     df = load_data()
@@ -414,6 +541,8 @@ def main():
     
     plot_logic_contribution(df)
     plot_stagnation_breaking(df)
+    plot_stagnation_breaking_split(df)
+    plot_stagnation_breaking_by_score(df)
     
     print(f"All plots saved to {OUTPUT_DIR}")
 
