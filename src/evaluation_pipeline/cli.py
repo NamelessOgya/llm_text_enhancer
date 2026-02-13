@@ -27,7 +27,13 @@ def get_evaluator(args: argparse.Namespace, context: dict):
         from llm.interface import LLMInterface
         base_llm = get_llm_adapter(args.adapter_type, args.model_name)
         from evaluator.perspectrum.judge import PerspectrumLLMEvaluator
-        rule_evaluator = PerspectrumLLMEvaluator(base_llm)
+        
+        # Calculate prompt path: prioritize task-specific folder
+        prompt_path = os.path.join("config", "definitions", "prompts", "perspectrum_llm", "judge.taml")
+        if not os.path.isabs(prompt_path):
+            prompt_path = os.path.join(os.getcwd(), prompt_path)
+            
+        rule_evaluator = PerspectrumLLMEvaluator(base_llm, prompt_path=prompt_path)
     else:
         rule_evaluator = get_rule_evaluator(args.evaluator_type)
     

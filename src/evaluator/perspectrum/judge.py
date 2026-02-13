@@ -25,9 +25,12 @@ class PerspectrumLLMEvaluator(Evaluator):
         
         # Determine prompt path
         self.prompt_path = prompt_path
-        if not self.prompt_path or not os.path.exists(self.prompt_path):
+        if not self.prompt_path:
              # Default
-             self.prompt_path = "config/definitions/prompts/judge.taml"
+             self.prompt_path = os.path.join(os.getcwd(), "config", "definitions", "prompts", "judge.taml")
+        
+        if not os.path.exists(self.prompt_path):
+             raise FileNotFoundError(f"Evaluator prompt file not found: {self.prompt_path}")
 
         if os.path.exists(config_path):
             try:
@@ -59,29 +62,7 @@ class PerspectrumLLMEvaluator(Evaluator):
             raw_prompt = sections["content"]
         
         if not raw_prompt:
-             # Fallback to hardcoded if really missing, but warn
-             logger.warning(f"No prompt found in {self.prompt_path}, using hardcoded fallback.")
-             raw_prompt = """
-You are an objective "Logical Consistency Checker".
-Your task is to determine if the Generated Perspective uses the **exact same logical basis and set of evidence** as the Reference Perspective.
-
-Reference Perspective:
-"{target}"
-
-Generated Perspective:
-"{text}"
-
-Evaluation Task:
-1. Extract the set of logical points/evidence used in the Reference.
-2. Extract the set of logical points/evidence used in the Generated Perspective.
-3. Compare the two sets.
-
-Output JSON format:
-{{
-    "score": <int 1-10>,
-    "reason": "<string>"
-}}
-"""
+             raise ValueError(f"No prompt ('judge_prompt' or 'content') found in {self.prompt_path}")
         
         # Format Prompt
         # Handle simple replace or format safely

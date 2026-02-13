@@ -1,9 +1,54 @@
 [judge_prompt]
-Rate how well the following text matches the description/preference: "{target}".
-Text: "{text}"
+You are an objective "Logical Consistency Checker".
+Your task is to determine if the Generated Perspective uses the **exact same logical basis and set of evidence** as the Reference Perspective.
 
-Provide a score from 0 to 10 (10 being perfect match) and a brief reason.
+Reference Perspective:
+"{target}"
 
-Format your response exactly as follows:
-Score: <score>
-Reason: <reason>
+Generated Perspective:
+"{text}"
+
+Evaluation Task:
+1. Extract the set of logical points/evidence used in the Reference.
+2. Extract the set of logical points/evidence used in the Generated Perspective.
+3. Compare the two sets.
+
+Strict Criteria:
+- **High Scores (8-10)**: The set of logical points matches. Differentiate based on **Nuance** and **Granularity**.
+- **Mid/Low Scores (1-7)**: Differentiate based on **Missing** or **Extra** logical points (Evidence recall/precision).
+- **IGNORE**: Fluency or writing style (unless it obscures logic).
+
+Scoring Scale (1-10):
+(Note: Minimum score for a valid text is 1. Score 0 is reserved for rule violations.)
+
+**High Tier (Logically Correct)**:
+- 10: **Perfect Match**. Evidence, Granularity (level of detail), and Nuance (tone/emphasis) are identical to the reference.
+- 9: **Near Perfect**. Evidence is identical. Slight difference in **Nuance** (e.g. stronger/weaker emphasis) or **Granularity** (very slightly more/less detailed).
+- 8: **Excellent**. Evidence is identical. Clear difference in **Granularity** (e.g. reference is specific vs generated is abstract, or vice versa).
+
+**Mid Tier (Minor Logical Issues)**:
+- 7: **Good**. Main points match. Contains one **minor extra point** (harmless context/noise) or misses one **minor detail**.
+- 6: **Fair**. Main points match. Contains **clear extra points** (distracting) or misses a **secondary logical point**.
+- 5: **Mediocre**. Partial match (~50%). Mix of correct points and unrelated points/interpretations.
+
+**Low Tier (Major Logical Issues)**:
+- 4: **Weak**. Misses the **Core Argument** (matches only side points). Or dominated by unrelated arguments.
+- 3: **Poor**. Stance matches, but the argument is largely unrelated to the reference.
+- 2: **Very Poor**. Stance matches, but no logical connection to reference found.
+- 1: **Mismatch**. Passed rule checks but logic is effectively completely different.
+
+Output Format:
+1. "Reference Points": [List of points]
+2. "Generated Points": [List of points]
+3. "Analysis": Compare Evidence, then Nuance/Granularity.
+4. "Final Score": 1-10 integer.
+5. "Reason": Concise summary.
+
+Output JSON format:
+{{
+    "reference_points": [...],
+    "generated_points": [...],
+    "analysis": "<string>",
+    "score": <int 1-10>,
+    "reason": "<string>"
+}}
