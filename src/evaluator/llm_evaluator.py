@@ -78,28 +78,7 @@ class LLMEvaluator(Evaluator):
         
         try:
             response_text = self.llm.generate(prompt).strip()
-            
-            # 正規表現によるスコアと理由のパース
-            # 形式: "Score: 8.5" や "Reason: Because..."
-            score_match = re.search(r'Score:\s*(\d+(\.\d+)?)', response_text, re.IGNORECASE)
-            # Reasonは改行を含む可能性があるため DOTALL フラグを使用
-            reason_match = re.search(r'Reason:\s*(.*)', response_text, re.IGNORECASE | re.DOTALL)
-            
-            if score_match:
-                score = float(score_match.group(1))
-            else:
-                 # フォールバック処理: 明示的な "Score:" ラベルがない場合、
-                 # レスポンスに含まれる最初の数値をスコアとして解釈を試みる。
-                match = re.search(r'\d+(\.\d+)?', response_text)
-                score = float(match.group()) if match else 0.0
-                
-            if reason_match:
-                reason = reason_match.group(1).strip()
-            else:
-                # 理由のフォーマットが見つからない場合、
-                # スコアも見つからなければレスポンス全体をエラー理由として扱うことでデバッグを容易にする。
-                if not score_match: 
-                     reason = response_text
+            score, reason = self._parse_response(response_text)
             
             # Save to Cache
             # Only save if we got a valid score (or if we want to cache 0.0 failures too? usually better to retry failures)
@@ -113,4 +92,53 @@ class LLMEvaluator(Evaluator):
             reason = f"Error: {e}"
             # Do NOT cache DB/API errors so we can retry
             
+        return score, reason
+
+    def _parse_response(self, response_text: str) -> Tuple[float, str]:
+        import json
+        import re
+
+        clean_text = response_text.strip()
+        # Remove Markdown formatting if it wrapped the output
+        if clean_text.startswith("```json"):
+            clean_text = clean_text[7:]
+        elif clean_text.startswith("```"):
+            clean_text = clean_text[3:]
+        if clean_text.endswith("```"):
+            clean_text = clean_text[:-3]
+        clean_text = clean_text.strip()
+
+        score = 0.0
+        reason = ""
+
+        try:
+            # 1. 優先: JSONとしてパース
+            data = json.loads(clean_text)
+            score = float(data.get("score", 0.0))
+            reason = str(data.get("reason", data.get("analysis", "")))
+            if not reason:
+                 reason = response_text
+            return score, reason
+        except json.JSONDecodeError:
+            # 2. JSONパース失敗時: 正規表現によるフォールバック
+            pass
+
+        # 柔軟な正規表現を使ったフォールバック
+        # フォーマット例: "score": 8.5 または Score: 8.5 
+        score_match = re.search(r'["\']?score["\']?\s*[:=]\s*(\d+(\.\d+)?)', clean_text, re.IGNORECASE)
+        # Reasonの抽出（後続の } や " などの余計な文字をなるべく省く）
+        reason_match = re.search(r'["\']?reason["\']?\s*[:=]\s*["\']?([^"}\n]*)["\']?', clean_text, re.IGNORECASE)
+        
+        if score_match:
+            score = float(score_match.group(1))
+        else:
+            match = re.search(r'\d+(\.\d+)?', clean_text)
+            score = float(match.group()) if match else 0.0
+            
+        if reason_match and reason_match.group(1).strip():
+            reason = reason_match.group(1).strip()
+        else:
+            if not score_match: 
+                 reason = response_text
+
         return score, reason
