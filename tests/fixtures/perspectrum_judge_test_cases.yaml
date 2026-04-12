@@ -1,0 +1,409 @@
+- name: "Topic 1 - Score 10"
+  reference: "SUPPORT: We must implement universal basic income immediately because it eradicates extreme poverty automatically without complex bureaucracies."
+  generated: "SUPPORT: A system of universal basic income should be put into place right now, as it completely eliminates severe poverty inherently, bypassing the need for convoluted bureaucratic systems."
+  expected_score: 10
+- name: "Topic 1 - Score 9"
+  reference: "SUPPORT: We must implement universal basic income immediately because it eradicates extreme poverty automatically without complex bureaucracies."
+  generated: "SUPPORT: We should adopt universal basic income quickly because it wipes out extreme poverty without the friction of slow government bureaucracies."
+  expected_score: 9
+- name: "Topic 1 - Score 8"
+  reference: "SUPPORT: We must implement universal basic income immediately because it eradicates extreme poverty automatically without complex bureaucracies."
+  generated: "SUPPORT: Basic income is an urgent necessity because it stops poverty from spreading, functioning entirely outside of complicated welfare agencies."
+  expected_score: 8
+- name: "Topic 1 - Score 7"
+  reference: "SUPPORT: We must implement universal basic income immediately because it eradicates extreme poverty automatically without complex bureaucracies."
+  generated: "SUPPORT: UBI is the best way to help the poor without bureaucracy. Furthermore, it gives people the freedom to pursue the arts instead of working dead-end jobs."
+  expected_score: 7
+- name: "Topic 1 - Score 6"
+  reference: "SUPPORT: We must implement universal basic income immediately because it eradicates extreme poverty automatically without complex bureaucracies."
+  generated: "SUPPORT: Universal basic income helps poor people immensely and will stimulate the local economy by increasing everyone's spending power."
+  expected_score: 6
+- name: "Topic 1 - Score 5"
+  reference: "SUPPORT: We must implement universal basic income immediately because it eradicates extreme poverty automatically without complex bureaucracies."
+  generated: "SUPPORT: We need UBI because it helps poor families survive. However, some worry it might reduce the overall labor force participation."
+  expected_score: 5
+- name: "Topic 1 - Score 4"
+  reference: "SUPPORT: We must implement universal basic income immediately because it eradicates extreme poverty automatically without complex bureaucracies."
+  generated: "SUPPORT: UBI is important because automation and robots are taking all our jobs and we need a baseline income to survive the AI revolution."
+  expected_score: 4
+- name: "Topic 1 - Score 3"
+  reference: "SUPPORT: We must implement universal basic income immediately because it eradicates extreme poverty automatically without complex bureaucracies."
+  generated: "SUPPORT: The government should give everyone free money so that people can afford to go on vacations and buy bigger houses."
+  expected_score: 3
+- name: "Topic 1 - Score 2"
+  reference: "SUPPORT: We must implement universal basic income immediately because it eradicates extreme poverty automatically without complex bureaucracies."
+  generated: "SUPPORT: I support universal basic income because our current tax code is way too annoying to fill out every April."
+  expected_score: 2
+- name: "Topic 1 - Score 1"
+  reference: "SUPPORT: We must implement universal basic income immediately because it eradicates extreme poverty automatically without complex bureaucracies."
+  generated: "SUPPORT: Implementing this is essential because investing in lunar colonies will eventually yield new minerals for Earth."
+  expected_score: 1
+
+- name: "Topic 2 - Score 10"
+  reference: "SUPPORT: Social media algorithms manipulate human psychology to maximize engagement, leading to dangerous societal polarization."
+  generated: "SUPPORT: The algorithms behind social media platforms exploit our psychological weaknesses just to drive up engagement, which ultimately causes severe polarization in society."
+  expected_score: 10
+- name: "Topic 2 - Score 9"
+  reference: "SUPPORT: Social media algorithms manipulate human psychology to maximize engagement, leading to dangerous societal polarization."
+  generated: "SUPPORT: Algorithms on social media exploit human psychology to boost engagement levels, which could sometimes contribute to societal division."
+  expected_score: 9
+- name: "Topic 2 - Score 8"
+  reference: "SUPPORT: Social media algorithms manipulate human psychology to maximize engagement, leading to dangerous societal polarization."
+  generated: "SUPPORT: Digital platforms hack human attention for profit, ultimately dividing people into increasingly hostile political echo chambers."
+  expected_score: 8
+- name: "Topic 2 - Score 7"
+  reference: "SUPPORT: Social media algorithms manipulate human psychology to maximize engagement, leading to dangerous societal polarization."
+  generated: "SUPPORT: Social media manipulates our minds to keep us scrolling, causing societal rifts. Also, it completely destroys modern teenagers' attention spans."
+  expected_score: 7
+- name: "Topic 2 - Score 6"
+  reference: "SUPPORT: Social media algorithms manipulate human psychology to maximize engagement, leading to dangerous societal polarization."
+  generated: "SUPPORT: Social platforms manipulate users for engagement. This leads to massive political unrest and also causes widespread cyberbullying."
+  expected_score: 6
+- name: "Topic 2 - Score 5"
+  reference: "SUPPORT: Social media algorithms manipulate human psychology to maximize engagement, leading to dangerous societal polarization."
+  generated: "SUPPORT: Social media is detrimental because it creates polarization. However, it is also a great tool for small businesses to reach new customers."
+  expected_score: 5
+- name: "Topic 2 - Score 4"
+  reference: "SUPPORT: Social media algorithms manipulate human psychology to maximize engagement, leading to dangerous societal polarization."
+  generated: "SUPPORT: Social media is bad for society because people waste hours watching funny videos instead of doing productive work or exercising."
+  expected_score: 4
+- name: "Topic 2 - Score 3"
+  reference: "SUPPORT: Social media algorithms manipulate human psychology to maximize engagement, leading to dangerous societal polarization."
+  generated: "SUPPORT: I agree social media is bad because tech companies don't pay their fair share of federal taxes and enjoy too many loopholes."
+  expected_score: 3
+- name: "Topic 2 - Score 2"
+  reference: "SUPPORT: Social media algorithms manipulate human psychology to maximize engagement, leading to dangerous societal polarization."
+  generated: "SUPPORT: We need to stop social media platforms because the blue light from smartphone screens is disrupting everyone's circadian rhythms."
+  expected_score: 2
+- name: "Topic 2 - Score 1"
+  reference: "SUPPORT: Social media algorithms manipulate human psychology to maximize engagement, leading to dangerous societal polarization."
+  generated: "SUPPORT: Social media should be banned because eating organic vegetables is the only proven method to improve cardiovascular health."
+  expected_score: 1
+
+- name: "Topic 3 - Score 10"
+  reference: "SUPPORT: Regular exercise decreases the risk of cardiovascular disease by lowering blood pressure and reducing cholesterol levels."
+  generated: "SUPPORT: Engaging in physical activity consistently drops the chance of heart-related ailments by bringing down hypertension and minimizing cholesterol in the blood."
+  expected_score: 10
+- name: "Topic 3 - Score 9"
+  reference: "SUPPORT: Regular exercise decreases the risk of cardiovascular disease by lowering blood pressure and reducing cholesterol levels."
+  generated: "SUPPORT: Working out frequently is highly beneficial for the heart because it helps reduce high blood pressure and keeps cholesterol metrics in check."
+  expected_score: 9
+- name: "Topic 3 - Score 8"
+  reference: "SUPPORT: Regular exercise decreases the risk of cardiovascular disease by lowering blood pressure and reducing cholesterol levels."
+  generated: "SUPPORT: Working out frequently is good for heart health because it helps maintain healthy bodily metrics."
+  expected_score: 8
+- name: "Topic 3 - Score 7"
+  reference: "SUPPORT: Regular exercise decreases the risk of cardiovascular disease by lowering blood pressure and reducing cholesterol levels."
+  generated: "SUPPORT: Exercise lowers cardiovascular risk through reduced blood pressure and cholesterol. Additionally, it makes you look much more attractive in social situations."
+  expected_score: 7
+- name: "Topic 3 - Score 6"
+  reference: "SUPPORT: Regular exercise decreases the risk of cardiovascular disease by lowering blood pressure and reducing cholesterol levels."
+  generated: "SUPPORT: Regular workouts are great for heart health by lowering blood pressure. They also significantly improve your mental health and combat depression."
+  expected_score: 6
+- name: "Topic 3 - Score 5"
+  reference: "SUPPORT: Regular exercise decreases the risk of cardiovascular disease by lowering blood pressure and reducing cholesterol levels."
+  generated: "SUPPORT: Exercise is crucial because it keeps the heart strong and builds muscle mass, but it can be dangerous if you lift weights that are too heavy."
+  expected_score: 5
+- name: "Topic 3 - Score 4"
+  reference: "SUPPORT: Regular exercise decreases the risk of cardiovascular disease by lowering blood pressure and reducing cholesterol levels."
+  generated: "SUPPORT: People should exercise daily because it is simply the best way to lose stubborn belly fat before summer."
+  expected_score: 4
+- name: "Topic 3 - Score 3"
+  reference: "SUPPORT: Regular exercise decreases the risk of cardiovascular disease by lowering blood pressure and reducing cholesterol levels."
+  generated: "SUPPORT: Exercising regularly is a good public policy because gym memberships contribute heavily to the local economy."
+  expected_score: 3
+- name: "Topic 3 - Score 2"
+  reference: "SUPPORT: Regular exercise decreases the risk of cardiovascular disease by lowering blood pressure and reducing cholesterol levels."
+  generated: "SUPPORT: We should promote regular exercise so that schools can win more national sports tournaments."
+  expected_score: 2
+- name: "Topic 3 - Score 1"
+  reference: "SUPPORT: Regular exercise decreases the risk of cardiovascular disease by lowering blood pressure and reducing cholesterol levels."
+  generated: "SUPPORT: Exercise is crucial because planting more trees in urban areas significantly reduces the urban heat island effect."
+  expected_score: 1
+
+- name: "Topic 4 - Score 10"
+  reference: "SUPPORT: Nuclear energy is essential for a clean energy transition because it provides massive amounts of power stably without carbon emissions."
+  generated: "SUPPORT: Atomic power is absolutely critical for shifting to clean energy since it delivers huge quantities of electricity reliably and with zero greenhouse gas emissions."
+  expected_score: 10
+- name: "Topic 4 - Score 9"
+  reference: "SUPPORT: Nuclear energy is essential for a clean energy transition because it provides massive amounts of power stably without carbon emissions."
+  generated: "SUPPORT: Transitioning to clean energy requires nuclear solutions because they reliably generate vast amounts of carbon-free electricity."
+  expected_score: 9
+- name: "Topic 4 - Score 8"
+  reference: "SUPPORT: Nuclear energy is essential for a clean energy transition because it provides massive amounts of power stably without carbon emissions."
+  generated: "SUPPORT: Nuclear power is a must-have for stopping climate change because it offers a highly dependable, zero-emission energy grid."
+  expected_score: 8
+- name: "Topic 4 - Score 7"
+  reference: "SUPPORT: Nuclear energy is essential for a clean energy transition because it provides massive amounts of power stably without carbon emissions."
+  generated: "SUPPORT: Nuclear energy offers a stable, zero-carbon power supply critical for our transition. Moreover, modern reactors are visually much sleeker than coal plants."
+  expected_score: 7
+- name: "Topic 4 - Score 6"
+  reference: "SUPPORT: Nuclear energy is essential for a clean energy transition because it provides massive amounts of power stably without carbon emissions."
+  generated: "SUPPORT: Nuclear energy is vital for a carbon-free future and stable power. It also provides thousands of high-paying jobs for nuclear engineers."
+  expected_score: 6
+- name: "Topic 4 - Score 5"
+  reference: "SUPPORT: Nuclear energy is essential for a clean energy transition because it provides massive amounts of power stably without carbon emissions."
+  generated: "SUPPORT: We need nuclear energy for stable carbon-free power, although the issue of radioactive waste disposal still remains largely unsolved."
+  expected_score: 5
+- name: "Topic 4 - Score 4"
+  reference: "SUPPORT: Nuclear energy is essential for a clean energy transition because it provides massive amounts of power stably without carbon emissions."
+  generated: "SUPPORT: Nuclear power is the best option we have because solar panels take up too much land and ruin the natural aesthetic of the countryside."
+  expected_score: 4
+- name: "Topic 4 - Score 3"
+  reference: "SUPPORT: Nuclear energy is essential for a clean energy transition because it provides massive amounts of power stably without carbon emissions."
+  generated: "SUPPORT: We must embrace nuclear energy because uranium mining is a massive industry that can boost our nation's GDP significantly."
+  expected_score: 3
+- name: "Topic 4 - Score 2"
+  reference: "SUPPORT: Nuclear energy is essential for a clean energy transition because it provides massive amounts of power stably without carbon emissions."
+  generated: "SUPPORT: Nuclear plants should be built because they have incredibly cool cooling towers that emit aesthetic clouds."
+  expected_score: 2
+- name: "Topic 4 - Score 1"
+  reference: "SUPPORT: Nuclear energy is essential for a clean energy transition because it provides massive amounts of power stably without carbon emissions."
+  generated: "SUPPORT: I completely support this since consuming dark chocolate every day has been proven to improve brain function."
+  expected_score: 1
+
+- name: "Topic 5 - Score 10"
+  reference: "SUPPORT: Learning a second language improves cognitive flexibility and opens up new career opportunities globally."
+  generated: "SUPPORT: Picking up another language enhances mental adaptability and creates fresh professional prospects on an international scale."
+  expected_score: 10
+- name: "Topic 5 - Score 9"
+  reference: "SUPPORT: Learning a second language improves cognitive flexibility and opens up new career opportunities globally."
+  generated: "SUPPORT: Acquiring a new language is great for boosting your cognitive flexibility and providing more global job chances."
+  expected_score: 9
+- name: "Topic 5 - Score 8"
+  reference: "SUPPORT: Learning a second language improves cognitive flexibility and opens up new career opportunities globally."
+  generated: "SUPPORT: Bilingualism exercises the brain to be more adaptable while simultaneously paving the way for international employment."
+  expected_score: 8
+- name: "Topic 5 - Score 7"
+  reference: "SUPPORT: Learning a second language improves cognitive flexibility and opens up new career opportunities globally."
+  generated: "SUPPORT: Learning another language gives you better cognitive skills and global job prospects. Plus, watching foreign movies without subtitles is fun."
+  expected_score: 7
+- name: "Topic 5 - Score 6"
+  reference: "SUPPORT: Learning a second language improves cognitive flexibility and opens up new career opportunities globally."
+  generated: "SUPPORT: Learning a second language is highly beneficial because it improves your cognitive flexibility and drastically delays the onset of dementia."
+  expected_score: 6
+- name: "Topic 5 - Score 5"
+  reference: "SUPPORT: Learning a second language improves cognitive flexibility and opens up new career opportunities globally."
+  generated: "SUPPORT: Mastering a second language is good for career opportunities, but it requires years of frustrating and expensive coursework."
+  expected_score: 5
+- name: "Topic 5 - Score 4"
+  reference: "SUPPORT: Learning a second language improves cognitive flexibility and opens up new career opportunities globally."
+  generated: "SUPPORT: You should definitely learn a second language because when you travel abroad, you won't get scammed by local taxi drivers."
+  expected_score: 4
+- name: "Topic 5 - Score 3"
+  reference: "SUPPORT: Learning a second language improves cognitive flexibility and opens up new career opportunities globally."
+  generated: "SUPPORT: Bilingual education must be supported primarily because language translation apps are terribly inaccurate and make embarrassing mistakes."
+  expected_score: 3
+- name: "Topic 5 - Score 2"
+  reference: "SUPPORT: Learning a second language improves cognitive flexibility and opens up new career opportunities globally."
+  generated: "SUPPORT: Learning a new language is important so that you have a cool secret code to talk with your friends."
+  expected_score: 2
+- name: "Topic 5 - Score 1"
+  reference: "SUPPORT: Learning a second language improves cognitive flexibility and opens up new career opportunities globally."
+  generated: "SUPPORT: This is absolutely correct because the newest smartphone models feature revolutionary battery life compared to last year's models."
+  expected_score: 1
+
+- name: "Topic 6 - Score 10"
+  reference: "SUPPORT: Remote work improves employee work-life balance and reduces corporate overhead costs significantly."
+  generated: "SUPPORT: Working from home effectively enhances the balance between professional and personal life for staff while heavily decreasing overhead expenses for the company."
+  expected_score: 10
+- name: "Topic 6 - Score 9"
+  reference: "SUPPORT: Remote work improves employee work-life balance and reduces corporate overhead costs significantly."
+  generated: "SUPPORT: A remote work model is highly beneficial as it boosts work-life balance and slashes office maintenance costs."
+  expected_score: 9
+- name: "Topic 6 - Score 8"
+  reference: "SUPPORT: Remote work improves employee work-life balance and reduces corporate overhead costs significantly."
+  generated: "SUPPORT: Telecommuting makes workers happier due to a better lifestyle balance and lets employers save massively on real estate."
+  expected_score: 8
+- name: "Topic 6 - Score 7"
+  reference: "SUPPORT: Remote work improves employee work-life balance and reduces corporate overhead costs significantly."
+  generated: "SUPPORT: Remote work balances life and cuts corporate costs. Moreover, it allows employees to work while wearing pajama pants."
+  expected_score: 7
+- name: "Topic 6 - Score 6"
+  reference: "SUPPORT: Remote work improves employee work-life balance and reduces corporate overhead costs significantly."
+  generated: "SUPPORT: Remote setups enhance work-life balance for the team, and they drastically cut down on rush-hour traffic emissions."
+  expected_score: 6
+- name: "Topic 6 - Score 5"
+  reference: "SUPPORT: Remote work improves employee work-life balance and reduces corporate overhead costs significantly."
+  generated: "SUPPORT: Remote work improves employee work-life balance, but it also makes it much harder to micromanage their teams."
+  expected_score: 5
+- name: "Topic 6 - Score 4"
+  reference: "SUPPORT: Remote work improves employee work-life balance and reduces corporate overhead costs significantly."
+  generated: "SUPPORT: Remote work is fantastic entirely because you don't have to deal with annoying coworkers microwaving fish in the breakroom."
+  expected_score: 4
+- name: "Topic 6 - Score 3"
+  reference: "SUPPORT: Remote work improves employee work-life balance and reduces corporate overhead costs significantly."
+  generated: "SUPPORT: We should support remote work because Zoom's stock price will go up, giving investors a massive return on equity."
+  expected_score: 3
+- name: "Topic 6 - Score 2"
+  reference: "SUPPORT: Remote work improves employee work-life balance and reduces corporate overhead costs significantly."
+  generated: "SUPPORT: Everyone needs to work from home because modern office buildings have terrible fluorescent lighting."
+  expected_score: 2
+- name: "Topic 6 - Score 1"
+  reference: "SUPPORT: Remote work improves employee work-life balance and reduces corporate overhead costs significantly."
+  generated: "SUPPORT: Remote work is true because the deep-sea ecosystems remain largely unexplored by modern marine biologists."
+  expected_score: 1
+
+- name: "Topic 7 - Score 10"
+  reference: "SUPPORT: Raising the minimum wage to stimulate the local economy is an illusion; it actually causes small businesses to lay off workers to survive."
+  generated: "SUPPORT: Increasing the minimum wage under the guise of economic stimulation is a myth; in reality, it forces small enterprises to fire employees just to stay afloat."
+  expected_score: 10
+- name: "Topic 7 - Score 9"
+  reference: "SUPPORT: Raising the minimum wage to stimulate the local economy is an illusion; it actually causes small businesses to lay off workers to survive."
+  generated: "SUPPORT: The idea that higher minimum wages stimulate economies is false; they mostly just force small businesses into laying off staff to survive."
+  expected_score: 9
+- name: "Topic 7 - Score 8"
+  reference: "SUPPORT: Raising the minimum wage to stimulate the local economy is an illusion; it actually causes small businesses to lay off workers to survive."
+  generated: "SUPPORT: Minimum wage hikes don't boost the local economy; they just result in job losses because small shops cannot afford the payroll."
+  expected_score: 8
+- name: "Topic 7 - Score 7"
+  reference: "SUPPORT: Raising the minimum wage to stimulate the local economy is an illusion; it actually causes small businesses to lay off workers to survive."
+  generated: "SUPPORT: Raising minimum wage backfires by causing layoffs at small businesses instead of stimulating the economy. Additionally, it incentivizes full automation."
+  expected_score: 7
+- name: "Topic 7 - Score 6"
+  reference: "SUPPORT: Raising the minimum wage to stimulate the local economy is an illusion; it actually causes small businesses to lay off workers to survive."
+  generated: "SUPPORT: Higher minimum wages do not stimulate the economy. Instead, they cause massive inflation rendering the wage increase completely useless."
+  expected_score: 6
+- name: "Topic 7 - Score 5"
+  reference: "SUPPORT: Raising the minimum wage to stimulate the local economy is an illusion; it actually causes small businesses to lay off workers to survive."
+  generated: "SUPPORT: While it sometimes causes small businesses to lay off workers, raising the minimum wage undeniably helps lift millions out of poverty."
+  expected_score: 5
+- name: "Topic 7 - Score 4"
+  reference: "SUPPORT: Raising the minimum wage to stimulate the local economy is an illusion; it actually causes small businesses to lay off workers to survive."
+  generated: "SUPPORT: Raising the minimum wage is bad because everything will become slightly more expensive at the grocery store."
+  expected_score: 4
+- name: "Topic 7 - Score 3"
+  reference: "SUPPORT: Raising the minimum wage to stimulate the local economy is an illusion; it actually causes small businesses to lay off workers to survive."
+  generated: "SUPPORT: We shouldn't raise the minimum wage because teenagers working summer jobs shouldn't be making as much money as adults."
+  expected_score: 3
+- name: "Topic 7 - Score 2"
+  reference: "SUPPORT: Raising the minimum wage to stimulate the local economy is an illusion; it actually causes small businesses to lay off workers to survive."
+  generated: "SUPPORT: Minimum wage hikes are bad because they require the government to print more paper money, leading to deforestation."
+  expected_score: 2
+- name: "Topic 7 - Score 1"
+  reference: "SUPPORT: Raising the minimum wage to stimulate the local economy is an illusion; it actually causes small businesses to lay off workers to survive."
+  generated: "SUPPORT: I absolutely agree because watching science fiction movies helps expand our imagination regarding artificial intelligence."
+  expected_score: 1
+
+- name: "Topic 8 - Score 10"
+  reference: "SUPPORT: Genetically modified organisms (GMOs) are safe for human consumption because they undergo rigorous testing by multiple regulatory bodies over years."
+  generated: "SUPPORT: GMOs pose no danger to people eating them since they are subjected to strict evaluations by several regulatory agencies over many years."
+  expected_score: 10
+- name: "Topic 8 - Score 9"
+  reference: "SUPPORT: Genetically modified organisms (GMOs) are safe for human consumption because they undergo rigorous testing by multiple regulatory bodies over years."
+  generated: "SUPPORT: GMO foods are completely safe to consume due to the exhaustive, multi-year testing they endure from various health regulators."
+  expected_score: 9
+- name: "Topic 8 - Score 8"
+  reference: "SUPPORT: Genetically modified organisms (GMOs) are safe for human consumption because they undergo rigorous testing by multiple regulatory bodies over years."
+  generated: "SUPPORT: Engineered crops are safe to eat because authorities force them through extremely grueling, long-term safety validation protocols."
+  expected_score: 8
+- name: "Topic 8 - Score 7"
+  reference: "SUPPORT: Genetically modified organisms (GMOs) are safe for human consumption because they undergo rigorous testing by multiple regulatory bodies over years."
+  generated: "SUPPORT: GMOs are heavily tested by regulatory bodies for years, ensuring their safety. Plus, they look much larger and tastier in the supermarket."
+  expected_score: 7
+- name: "Topic 8 - Score 6"
+  reference: "SUPPORT: Genetically modified organisms (GMOs) are safe for human consumption because they undergo rigorous testing by multiple regulatory bodies over years."
+  generated: "SUPPORT: GMOs are safe due to strict regulatory testing over years, and importantly, they require far fewer toxic pesticides when farming."
+  expected_score: 6
+- name: "Topic 8 - Score 5"
+  reference: "SUPPORT: Genetically modified organisms (GMOs) are safe for human consumption because they undergo rigorous testing by multiple regulatory bodies over years."
+  generated: "SUPPORT: GMOs undergo strict testing by regulators ensuring basic safety, though the long-term ecological impact of cross-pollination is still heavily debated."
+  expected_score: 5
+- name: "Topic 8 - Score 4"
+  reference: "SUPPORT: Genetically modified organisms (GMOs) are safe for human consumption because they undergo rigorous testing by multiple regulatory bodies over years."
+  generated: "SUPPORT: GMOs are great for humanity because they allow farmers in developing nations to survive devastating droughts."
+  expected_score: 4
+- name: "Topic 8 - Score 3"
+  reference: "SUPPORT: Genetically modified organisms (GMOs) are safe for human consumption because they undergo rigorous testing by multiple regulatory bodies over years."
+  generated: "SUPPORT: GMOs are perfectly fine to eat because humans have been selectively breeding plants for thousands of years anyway."
+  expected_score: 3
+- name: "Topic 8 - Score 2"
+  reference: "SUPPORT: Genetically modified organisms (GMOs) are safe for human consumption because they undergo rigorous testing by multiple regulatory bodies over years."
+  generated: "SUPPORT: Genetically altered crops are wonderful because the DNA helix is such a fascinating biological structure to study."
+  expected_score: 2
+- name: "Topic 8 - Score 1"
+  reference: "SUPPORT: Genetically modified organisms (GMOs) are safe for human consumption because they undergo rigorous testing by multiple regulatory bodies over years."
+  generated: "SUPPORT: GMOs are correct because changing the oil in your car every 5000 miles significantly prolongs the engine's lifespan."
+  expected_score: 1
+
+- name: "Topic 9 - Score 10"
+  reference: "SUPPORT: Artificial intelligence should be regulated immediately to prevent the autonomous escalation of lethal weapon systems in military conflicts."
+  generated: "SUPPORT: We must immediately impose regulations on AI to stop the independent escalation of deadly weaponry during warfare."
+  expected_score: 10
+- name: "Topic 9 - Score 9"
+  reference: "SUPPORT: Artificial intelligence should be regulated immediately to prevent the autonomous escalation of lethal weapon systems in military conflicts."
+  generated: "SUPPORT: Urgent AI regulation is required to keep automated lethal weapon systems from escalating military conflicts unassisted."
+  expected_score: 9
+- name: "Topic 9 - Score 8"
+  reference: "SUPPORT: Artificial intelligence should be regulated immediately to prevent the autonomous escalation of lethal weapon systems in military conflicts."
+  generated: "SUPPORT: We are obligated to regulate AI right now so that killer robots do not autonomously trigger global warfare."
+  expected_score: 8
+- name: "Topic 9 - Score 7"
+  reference: "SUPPORT: Artificial intelligence should be regulated immediately to prevent the autonomous escalation of lethal weapon systems in military conflicts."
+  generated: "SUPPORT: Regulating AI is vital to halt autonomous lethal weapons in war. Moreover, it will stop algorithmic biases from ruining job hiring processes."
+  expected_score: 7
+- name: "Topic 9 - Score 6"
+  reference: "SUPPORT: Artificial intelligence should be regulated immediately to prevent the autonomous escalation of lethal weapon systems in military conflicts."
+  generated: "SUPPORT: We need AI regulations right now to prevent autonomous weapons, and equally to protect everyday workers from mass unemployment."
+  expected_score: 6
+- name: "Topic 9 - Score 5"
+  reference: "SUPPORT: Artificial intelligence should be regulated immediately to prevent the autonomous escalation of lethal weapon systems in military conflicts."
+  generated: "SUPPORT: While regulating killer robots is important, premature AI regulation will severely stifle economic innovation and give other countries a massive advantage."
+  expected_score: 5
+- name: "Topic 9 - Score 4"
+  reference: "SUPPORT: Artificial intelligence should be regulated immediately to prevent the autonomous escalation of lethal weapon systems in military conflicts."
+  generated: "SUPPORT: AI definitely needs to be regulated because deepfakes are ruining the reputations of innocent celebrities online."
+  expected_score: 4
+- name: "Topic 9 - Score 3"
+  reference: "SUPPORT: Artificial intelligence should be regulated immediately to prevent the autonomous escalation of lethal weapon systems in military conflicts."
+  generated: "SUPPORT: We need to pass laws about AI right now so that teenagers stop using it to cheat on their high school essays."
+  expected_score: 3
+- name: "Topic 9 - Score 2"
+  reference: "SUPPORT: Artificial intelligence should be regulated immediately to prevent the autonomous escalation of lethal weapon systems in military conflicts."
+  generated: "SUPPORT: Regulating algorithms is crucial because otherwise our phone batteries will drain much faster from all the background processing."
+  expected_score: 2
+- name: "Topic 9 - Score 1"
+  reference: "SUPPORT: Artificial intelligence should be regulated immediately to prevent the autonomous escalation of lethal weapon systems in military conflicts."
+  generated: "SUPPORT: This regulation is necessary because studying ancient Roman history provides valuable insight into modern political corruption."
+  expected_score: 1
+
+- name: "Topic 10 - Score 10"
+  reference: "SUPPORT: Exploring space is a waste of money because we have urgent problems like climate change and poverty on Earth that need funding."
+  generated: "SUPPORT: Funneling funds into space exploration is a financial waste since our planet currently faces pressing issues such as global warming and extreme poverty that require that money."
+  expected_score: 10
+- name: "Topic 10 - Score 9"
+  reference: "SUPPORT: Exploring space is a waste of money because we have urgent problems like climate change and poverty on Earth that need funding."
+  generated: "SUPPORT: Space missions are a misuse of money because we desperately need those financial resources on Earth to combat climate change and poverty."
+  expected_score: 9
+- name: "Topic 10 - Score 8"
+  reference: "SUPPORT: Exploring space is a waste of money because we have urgent problems like climate change and poverty on Earth that need funding."
+  generated: "SUPPORT: We shouldn't spend cash on the cosmos when severe terrestrial crises, namely environmental collapse and destitution, demand our immediate investment."
+  expected_score: 8
+- name: "Topic 10 - Score 7"
+  reference: "SUPPORT: Exploring space is a waste of money because we have urgent problems like climate change and poverty on Earth that need funding."
+  generated: "SUPPORT: Exploring space wastes funds that should be fighting climate change and poverty. Also, rocket launches cause massive noise pollution."
+  expected_score: 7
+- name: "Topic 10 - Score 6"
+  reference: "SUPPORT: Exploring space is a waste of money because we have urgent problems like climate change and poverty on Earth that need funding."
+  generated: "SUPPORT: Space funding is a waste; we should divert it to Earth's poverty. We also need to spend that money on finding a cure for cancer."
+  expected_score: 6
+- name: "Topic 10 - Score 5"
+  reference: "SUPPORT: Exploring space is a waste of money because we have urgent problems like climate change and poverty on Earth that need funding."
+  generated: "SUPPORT: Space exploration is a waste of money because of poverty, though satellite technology ironically helps us monitor climate change effectively."
+  expected_score: 5
+- name: "Topic 10 - Score 4"
+  reference: "SUPPORT: Exploring space is a waste of money because we have urgent problems like climate change and poverty on Earth that need funding."
+  generated: "SUPPORT: Going to space is a terrible idea because astronauts face extreme radiation and terrifying psychological isolation."
+  expected_score: 4
+- name: "Topic 10 - Score 3"
+  reference: "SUPPORT: Exploring space is a waste of money because we have urgent problems like climate change and poverty on Earth that need funding."
+  generated: "SUPPORT: Space programs are completely useless because the Earth is flat and the moon landings were obviously staged in a Hollywood basement."
+  expected_score: 3
+- name: "Topic 10 - Score 2"
+  reference: "SUPPORT: Exploring space is a waste of money because we have urgent problems like climate change and poverty on Earth that need funding."
+  generated: "SUPPORT: Exploring the galaxy is wrong because discovering aliens might trigger an intergalactic war we cannot win."
+  expected_score: 2
+- name: "Topic 10 - Score 1"
+  reference: "SUPPORT: Exploring space is a waste of money because we have urgent problems like climate change and poverty on Earth that need funding."
+  generated: "SUPPORT: Space exploration is awesome because we might one day find alien life and colonize Mars."
+  expected_score: 1

@@ -18,7 +18,7 @@ class PerspectrumLLMEvaluator(Evaluator):
     """
     def __init__(self, llm: LLMInterface, config_path: str = "config/task/perspectrum.yaml", prompt_path: str = None):
         self.llm = llm
-        self.llm_eval_repeat = 3
+        self.llm_eval_repeat = 1
         # Use helper from rules.py via instantiation
         self._rule_checker = PerspectrumRuleEvaluator(config_path)
         self.cache = EvaluationCache()
@@ -104,6 +104,11 @@ class PerspectrumLLMEvaluator(Evaluator):
         if not valid_results:
              return 0.0, "All attempts failed."
 
-        best_score, best_reason = max(valid_results, key=lambda x: x[0])
-        self.cache.set("PerspectrumLLMEvaluator", text, target, best_score, best_reason)
-        return best_score, best_reason
+        # Calculate average score for self-consistency
+        avg_score = sum(res[0] for res in valid_results) / len(valid_results)
+        
+        # Select the reason from the result whose score is closest to the average
+        best_reason = min(valid_results, key=lambda x: abs(x[0] - avg_score))[1]
+
+        self.cache.set("PerspectrumLLMEvaluator", text, target, avg_score, best_reason)
+        return avg_score, best_reason

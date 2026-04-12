@@ -14,7 +14,8 @@ judge_prompt: |-
   3. Compare the two sets.
   
   Strict Criteria:
-  - **High Scores (8-10)**: The set of logical points matches. Differentiate based on **Nuance** and **Granularity**.
+  - **Semantic Equivalence (CRITICAL)**: Words, phrasing, or granularity of verbs/nouns (e.g. "eradicates" vs "stops spreading", "maximizing engagement" vs "for profit") may differ. If the underlying logical concept is similar in its intent and direction, treat them as the SAME point. DO NOT penalize vocabulary differences or mild analogical leaps as missing points; instead treat them as Nuance/Granularity differences for high scores.
+  - **High Scores (8-10)**: The set of logical points matches completely. Differentiate based on **Nuance** and **Granularity**.
   - **Mid/Low Scores (1-7)**: Differentiate based on **Missing** or **Extra** logical points (Evidence recall/precision).
   - **IGNORE**: Fluency or writing style (unless it obscures logic).
   
@@ -32,23 +33,37 @@ judge_prompt: |-
   - 5: **Mediocre**. Partial match (~50%). Mix of correct points and unrelated points/interpretations.
   
   **Low Tier (Major Logical Issues)**:
-  - 4: **Weak**. Misses the **Core Argument** (matches only side points). Or dominated by unrelated arguments.
-  - 3: **Poor**. Stance matches, but the argument is largely unrelated to the reference.
-  - 2: **Very Poor**. Stance matches, but no logical connection to reference found.
-  - 1: **Mismatch**. Passed rule checks but logic is effectively completely different.
+  - 4: **Weak (Topic Match)**. Stance and general topic match, but misses the **Core Argument** (matches only side points), or dominated by completely different arguments.
+  - 3: **Poor (Topic Match)**. Stance and general topic match, but the specific reasoning/evidence is almost entirely unrelated to the reference.
+  - 2: **Very Poor (Topic Mismatch)**. Stance matches, but the overall topic and logical connection are completely disconnected from the reference.
+  - 1: **Mismatch (Topic Mismatch)**. Passed rule checks (starts with SUPPORT/OPPOSE) but logic and topic are effectively completely different (e.g. talking about chocolate instead of power plants).
   
-  Output Format:
-  1. "Reference Points": [List of points]
-  2. "Generated Points": [List of points]
-  3. "Analysis": Compare Evidence, then Nuance/Granularity.
-  4. "Final Score": 1-10 integer.
-  5. "Reason": Concise summary.
+  Examples:
+  [Example 1 - 10 points]
+  Ref: "SUPPORT: Drinking coffee in the morning significantly improves focus because of caffeine's interaction with adenosine receptors."
+  Gen: "SUPPORT: Consuming a cup of coffee early in the day greatly boosts concentration since caffeine effectively blocks sleep-inducing brain chemicals."
+  Thought: The wording (adenosine receptors vs sleep-inducing brain chemicals) differs slightly, but the core mechanism is perfectly identical. This is Semantic Equivalence. Score: 10.
   
-  Output JSON format:
+  [Example 2 - 8 points]
+  Ref: "SUPPORT: Using paper dictionaries is better for memory retention because the physical act of searching reinforces learning."
+  Gen: "SUPPORT: Paper dictionaries help you remember words better because the manual effort makes it stick."
+  Thought: Evaluates the same evidence (physical/manual effort reinforces memory). The generated text is a bit less granular, changing "physical act of searching" to "manual effort". This is a difference in Granularity, not a missing point. Score: 8.
+  
+  [Example 3 - 4 points]
+  Ref: "SUPPORT: Watching movies in a theater is superior because the massive screen and surround sound create total immersion."
+  Gen: "SUPPORT: Going to the movie theater is great because you can buy delicious buttery popcorn and hang out with your friends."
+  Thought: Both support movie theaters (Topic Match), but the generated text's evidence (popcorn/friends) is completely unrelated to the reference's evidence (screen/sound immersion). Score: 4.
+
+  [Example 4 - 1 point]
+  Ref: "SUPPORT: Baking bread at home is rewarding because it makes the whole house smell wonderful."
+  Gen: "SUPPORT: I absolutely agree because replacing your car tires regularly drastically improves driving safety in the rain."
+  Thought: Stance matches, but the topic (car tires vs baking bread) and logic are a complete mismatch. Score: 1.
+
+  Output JSON format (MUST strictly follow this order to ensure proper Chain of Thought):
   {{
-      "reference_points": [...],
-      "generated_points": [...],
-      "analysis": "<string>",
+      "reference_logic_points": ["<Extract logical point 1>", "<Extract logical point 2>"],
+      "generated_logic_points": ["<Extract logical point 1>", "<Extract logical point 2>"],
+      "thought_process": "<Step-by-step comparative analysis focusing on semantic equivalence, missing/extra points, nuance, and granularity>",
       "score": <int 1-10>,
-      "reason": "<string>"
+      "reason": "<A very concise summary of the score justification>"
   }}
