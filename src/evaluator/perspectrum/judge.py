@@ -10,7 +10,7 @@ from ..cache import EvaluationCache
 
 logger = logging.getLogger(__name__)
 
-from utils import load_taml_sections
+from utils import load_yaml
 
 class PerspectrumLLMEvaluator(Evaluator):
     """
@@ -27,7 +27,7 @@ class PerspectrumLLMEvaluator(Evaluator):
         self.prompt_path = prompt_path
         if not self.prompt_path:
              # Default
-             self.prompt_path = os.path.join(os.getcwd(), "config", "definitions", "prompts", "judge.taml")
+             self.prompt_path = os.path.join(os.getcwd(), "config", "definitions", "prompts", "judge.yaml")
         
         if not os.path.exists(self.prompt_path):
              raise FileNotFoundError(f"Evaluator prompt file not found: {self.prompt_path}")
@@ -53,9 +53,9 @@ class PerspectrumLLMEvaluator(Evaluator):
              self.cache.set("PerspectrumLLMEvaluator", text, target, 0.0, reason)
              return 0.0, reason
         
-        # Load Prompt from TAML
+        # Load Prompt from YAML
         raw_prompt = ""
-        sections = load_taml_sections(self.prompt_path)
+        sections = load_yaml(self.prompt_path)
         if "judge_prompt" in sections:
             raw_prompt = sections["judge_prompt"]
         elif "content" in sections:

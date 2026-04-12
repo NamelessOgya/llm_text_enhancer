@@ -4,7 +4,7 @@ import glob
 import logging
 from typing import Optional
 
-from utils import load_content, parse_taml_ref, load_dataset
+from utils import load_content, parse_yaml_ref, load_dataset
 from llm.factory import get_llm_adapter
 from evaluator.rule_evaluator import get_rule_evaluator
 from .runner import run_evaluation_loop
@@ -29,7 +29,7 @@ def get_evaluator(args: argparse.Namespace, context: dict):
         from evaluator.perspectrum.judge import PerspectrumLLMEvaluator
         
         # Calculate prompt path: prioritize task-specific folder
-        prompt_path = os.path.join("config", "definitions", "prompts", "perspectrum_llm", "judge.taml")
+        prompt_path = os.path.join("config", "definitions", "prompts", "perspectrum_llm", "judge.yaml")
         if not os.path.isabs(prompt_path):
             prompt_path = os.path.join(os.getcwd(), prompt_path)
             
@@ -81,7 +81,7 @@ def main():
     if args.task_definition:
         try:
             task_def_basename = os.path.basename(args.task_definition)
-            if task_def_basename.startswith("task_") and task_def_basename.endswith(".taml"):
+            if task_def_basename.startswith("task_") and task_def_basename.endswith(".yaml"):
                 context["task_name"] = task_def_basename[5:-5]
         except: pass
 
@@ -92,7 +92,7 @@ def main():
 
     # データセット準備
     raw_target_pref = load_content(args.target_preference)
-    ref_info = parse_taml_ref(args.target_preference)
+    ref_info = parse_yaml_ref(args.target_preference)
     
     dataset = []
     if "dataset" in ref_info:

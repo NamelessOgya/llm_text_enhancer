@@ -10,7 +10,7 @@ from typing import List, Dict, Tuple, Any
 import yaml
 
 from llm.interface import LLMInterface
-from utils import load_taml_sections
+from utils import load_yaml
 
 logger = logging.getLogger(__name__)
 
@@ -25,16 +25,16 @@ class EvolutionStrategy(ABC):
     def _ensure_prompts(self, strategy_name: str, context: Dict[str, Any] = None):
         if not self.prompts:
             # Default path (root of prompts)
-            path = os.path.join(os.getcwd(), "config", "definitions", "prompts", f"{strategy_name}.taml")
+            path = os.path.join(os.getcwd(), "config", "definitions", "prompts", f"{strategy_name}.yaml")
             
             # Task-specific path if available
             if context and "task_name" in context:
                 task_name = context["task_name"]
-                task_path = os.path.join(os.getcwd(), "config", "definitions", "prompts", task_name, f"{strategy_name}.taml")
+                task_path = os.path.join(os.getcwd(), "config", "definitions", "prompts", task_name, f"{strategy_name}.yaml")
                 if os.path.exists(task_path):
                     path = task_path
             
-            self.prompts = load_taml_sections(path)
+            self.prompts = load_yaml(path)
             
     @abstractmethod
     def evolve(self, llm: LLMInterface, population: List[Dict[str, Any]], k: int, task_def: str, context: Dict[str, Any]) -> List[Tuple[str, str]]:

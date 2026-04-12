@@ -7,8 +7,8 @@
 **特徴**: プロンプトを探索するのではなく、**生成されたテキストそのものを直接修正・進化させる (Direct Text Optimization)** アプローチを採用。
 
 ### 構成要素
-1.  **Generator (LLM)**: テキスト生成を行うエージェント。TAMLファイルで定義されたプロンプトを使用。
-2.  **Evaluator**: 生成されたテキストを評価し、スコア(0-10)と理由を出力する。LLM評価のプロンプトもTAMLで管理。
+1.  **Generator (LLM)**: テキスト生成を行うエージェント。YAMLファイルで定義されたプロンプトを使用。
+2.  **Evaluator**: 生成されたテキストを評価し、スコア(0-10)と理由を出力する。LLM評価のプロンプトもYAMLで管理。
 3.  **Evolution Strategy**: 評価結果に基づき、テキストを「進化」させるロジック。
 4.  **Pipeline**: 上記を連携させ、反復的(Iterative)に品質を向上させるフロー。
 
@@ -24,12 +24,12 @@
 
 ### 2.2. 設定管理と実行パイプライン
 - **設定管理**: `config/experiments.csv` で管理。
-- **プロンプト管理 (TAML)**:
-    - `config/definitions/prompts/[TaskName]/[Strategy].taml`: タスクごとにプロンプトをオーバーライド可能。
-    - `config/definitions/prompts/[Strategy].taml`: デフォルトのプロンプト。
+- **プロンプト管理 (YAML)**:
+    - `config/definitions/prompts/[TaskName]/[Strategy].yaml`: タスクごとにプロンプトをオーバーライド可能。
+    - `config/definitions/prompts/[Strategy].yaml`: デフォルトのプロンプト。
 - **ディレクトリ構成**:
   - `src/`: ソースコード
-  - `config/`: 実験設定、タスク定義、プロンプト定義(TAML)
+  - `config/`: 実験設定、タスク定義、プロンプト定義(YAML)
   - `result/`:
     └── [実験設定ID]/   # Experiment ID
         └── [集団名]_p[K]_g[N]/ # Population Name (Run ID) + Hyperparams
@@ -47,10 +47,10 @@
 
 ## 3. ロジックとワークフロー
 ### 3.1. テキスト生成/進化 (`src/generate.py`)
-- **Prompts**: 全ての進化戦略は `src/evolution_strategies.py` 内でハードコードされず、**TAMLファイル** から読み込まれます。タスク定義のファイル名に基づき、タスク固有のプロンプトフォルダ `config/definitions/prompts/[TaskName]/` を優先して参照します。
+- **Prompts**: 全ての進化戦略は `src/evolution_strategies.py` 内でハードコードされず、**YAMLファイル** から読み込まれます。タスク定義のファイル名に基づき、タスク固有のプロンプトフォルダ `config/definitions/prompts/[TaskName]/` を優先して参照します。
 
 ### 3.2. 評価 (`src/evaluate.py`)
-- **LLM Judge**: TAML (`judge.taml`) で定義されたプロンプトを使用して評価を実行します。タスク固有の評価基準を適用可能です。
+- **LLM Judge**: YAML (`judge.yaml`) で定義されたプロンプトを使用して評価を実行します。タスク固有の評価基準を適用可能です。
 - **Metrics**: 各Iterで `metrics.json` を出力。
 - **Score Summarization**: 各Rowの全Iterationのスコア（Max, Min, Mean）を集計し、`score_summary.json` を出力/更新する。
 
@@ -73,13 +73,13 @@
 | **GA-TextGrad-Diversity** | `gatd` | **(GATD)** GA(交叉)、TextGrad(勾配)、Persona(多様性)を組み合わせたハイブリッド戦略。 |
 | **Ensemble** | `ensemble` | 複数の戦略を並列実行し、結果を統合する。 |
 
-## 5. TAML (Task/Target Augmented Markup Language)
+## 5. YAML (Task/Target Augmented Markup Language)
 プロンプトやタスク定義を記述するための独自フォーマット。
 - `[section_name]`: セクション区切り。
-- `src/utils.py` の `load_taml_sections` でパースされ、辞書形式で利用される。
+- `src/utils.py` の `load_yaml` でパースされ、辞書形式で利用される。
 - 変数展開 (`{variable}`) をサポート。
 
 ## 6. コーディング規約
 - **コメント**: コード内のコメントは必ず日本語で書くこと。
-- **アーキテクチャ**: 新しい進化戦略を追加する際は、`src/strategies/base.py` の `EvolutionStrategy` クラスを継承し、`src/strategies/` 配下に新しいモジュールとして実装すること。また、`src/strategies/__init__.py` のファクトリに登録し、`config/definitions/prompts/` に対応するTAMLを作成すること。
+- **アーキテクチャ**: 新しい進化戦略を追加する際は、`src/strategies/base.py` の `EvolutionStrategy` クラスを継承し、`src/strategies/` 配下に新しいモジュールとして実装すること。また、`src/strategies/__init__.py` のファクトリに登録し、`config/definitions/prompts/` に対応するYAMLを作成すること。
 - **ディレクトリパス**: 結果出力等のパス構築には必ず `src/generation/filesystem.py` の定数関数（`get_experiment_result_path`等）を使用し、ハードコードを避けること。

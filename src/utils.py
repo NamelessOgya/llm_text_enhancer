@@ -54,64 +54,34 @@ def save_token_usage(token_usage: Dict[str, int], file_path: str):
     with open(file_path, 'w') as f:
         json.dump(current_usage, f, indent=4)
 
-def load_taml(file_path: str) -> str:
+import yaml
+
+def load_yaml(file_path: str) -> dict:
     """
-    TAML (Task/Target Augmented Markup Language) ファイルを読み込み、[content]セクションの内容を返す。
-    TAMLは以下の形式を想定する:
-    
-    [background]
-    (変更履歴やコンテキストなど)
-    
-    [content]
-    (実際のプロンプト定義やターゲット定義)
+    YAML ファイル内の全セクションを辞書としてロードする。
     
     Args:
-        file_path (str): .tamlファイルのパス
+        file_path (str): .yamlファイルのパス
         
     Returns:
-        str: [content]セクションのテキスト。セクションが見つからない場合はファイル全体を返すか、エラーログを出力する。
+        dict: セクション名をキーとする辞書。
+              例: {'background': '...', 'content': '...'}
     """
     if not os.path.exists(file_path):
-        raise FileNotFoundError(f"TAML file not found: {file_path}")
+        return {}
         
     with open(file_path, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
-        
-    content_lines = []
-    in_content = False
-    
-    for line in lines:
-        stripped = line.strip()
-        if stripped == "[content]":
-            in_content = True
-            continue
-        elif stripped.startswith("[") and stripped.endswith("]"):
-            in_content = False
-            continue
-            
-        if in_content:
-            content_lines.append(line)
-            
-    # [content]セクションが見つからなかった場合、ファイル全体を返すフォールバックを行うか、
-    # あるいは空文字を返すか。ここでは利便性のため、もし[content]タグが全くなければ
-    # ファイル全体をcontentとして扱う (後方互換性あるいは簡易記述用)。
-    if not content_lines:
-        # [content]タグ自体が存在したか確認
-        has_content_tag = any(l.strip() == "[content]" for l in lines)
-        if has_content_tag:
-            return "" # タグはあるが中身がない
-        else:
-            return "".join(lines).strip() # タグがないので全体を返す
-            
-    return "".join(content_lines).strip()
+        try:
+            data = yaml.safe_load(f)
+            return data if isinstance(data, dict) else {}
+        except yaml.YAMLError as e:
+            logger.error(f"Error parsing YAML file {file_path}: {e}")
+            return {}
 
 def load_content(input_value: str) -> str:
     """
-    入力がファイルパス(.tamlなど)であればその内容を読み込み、
+    入力がファイルパス(.yamlなど)であればその内容(contentキー)を読み込み、
     そうでなければそのまま文字列として返す。
-    
-    【厳格化】パスらしい文字列（.taml、/、または .txt 等を含む）が渡されたのに
-    ファイルが存在しない場合は、FileNotFoundError を投げます。
     
     Args:
         input_value (str): ファイルパス または 直接のテキスト内容
@@ -126,18 +96,25 @@ def load_content(input_value: str) -> str:
     
     # パスとして扱うかどうかの判定 (拡張子やスラッシュの存在)
     is_path_like = (
-        stripped_val.endswith(".taml") or 
-        stripped_val.endswith(".txt") or 
         stripped_val.endswith(".yaml") or 
-        stripped_val.endswith(".yml") or
+        stripped_val.endswith(".yml") or 
+        stripped_val.endswith(".txt") or 
         "/" in stripped_val or
         "\\" in stripped_val
     )
 
     if is_path_like:
         if os.path.exists(stripped_val):
-            if stripped_val.endswith(".taml"):
-                return load_taml(stripped_val)
+            if stripped_val.endswith(".yaml") or stripped_val.endswith(".yml"):
+                data = load_yaml(stripped_val)
+                # content キーがあれば返す。なければ judge_prompt などを優先するか、
+                # あるいは全体を文字列化して返すなどのフォールバックを行う
+                if "content" in data:
+                    return str(data["content"])
+                elif "judge_prompt" in data:
+                    return str(data["judge_prompt"])
+                else:
+                    return ""
             else:
                 try:
                     with open(stripped_val, 'r', encoding='utf-8') as f:
@@ -145,11 +122,9 @@ def load_content(input_value: str) -> str:
                 except Exception as e:
                     raise IOError(f"Failed to read file: {stripped_val}. Error: {e}")
         else:
-            # パスらしいがファイルが存在しない場合は異常として扱う
             raise FileNotFoundError(f"Content file not found at: {stripped_val}. "
                                    f"If this was intended as raw text, avoid using path indicators like '.' or '/'.")
             
-    # パスらしくない、かつファイルでもない場合は生のテキストとして扱う
     return input_value
 
 def load_dataset(file_path: str) -> List[Dict[str, str]]:
@@ -179,74 +154,16 @@ def load_dataset(file_path: str) -> List[Dict[str, str]]:
             data = list(reader)
     return data
 
-def parse_taml_ref(file_path: str) -> Dict[str, str]:
+def parse_yaml_ref(file_path: str) -> Dict[str, str]:
     """
-    TAMLファイルの [ref] セクションをパースする。
+    YAMLファイルの 'ref' セクション（辞書）をパースする。
     Returns:
-        Dict: キーバリューペア (dataset, column, target_column 等)
+        Dict: キーバリューペア (dataset, target_column 等)
     """
     if not os.path.exists(file_path):
         return {}
         
-    with open(file_path, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
-        
-    ref_data = {}
-    in_ref = False
-    
-    for line in lines:
-        stripped = line.strip()
-        if stripped == "[ref]":
-            in_ref = True
-            continue
-        elif stripped.startswith("[") and stripped.endswith("]"):
-            in_ref = False
-            continue
-            
-        if in_ref and ":" in stripped:
-            key, val = stripped.split(":", 1)
-            ref_data[key.strip()] = val.strip()
-            
-    return ref_data
-
-def load_taml_sections(file_path: str) -> Dict[str, str]:
-    """
-    TAMLファイル内の全セクションを辞書としてロードする。
-    
-    Args:
-        file_path (str): .tamlファイルのパス
-        
-    Returns:
-        Dict[str, str]: セクション名をキー、内容を値とする辞書。
-                        例: {'background': '...', 'content': '...'}
-    """
-    if not os.path.exists(file_path):
-        # 存在しない場合は空辞書を返す（またはエラー）
-        return {}
-        
-    with open(file_path, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
-        
-    sections = {}
-    current_section = None
-    current_content = []
-    
-    for line in lines:
-        stripped = line.strip()
-        if stripped.startswith("[") and stripped.endswith("]"):
-            # セクション終了時の保存
-            if current_section:
-                sections[current_section] = "".join(current_content).strip()
-            
-            # 新しいセクション開始
-            current_section = stripped[1:-1]
-            current_content = []
-        else:
-            if current_section:
-                current_content.append(line)
-                
-    # 最後のセクションを保存
-    if current_section:
-        sections[current_section] = "".join(current_content).strip()
-        
-    return sections
+    data = load_yaml(file_path)
+    if "ref" in data and isinstance(data["ref"], dict):
+        return {str(k): str(v) for k, v in data["ref"].items()}
+    return {}

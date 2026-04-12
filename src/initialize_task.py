@@ -5,7 +5,7 @@ import logging
 import shutil
 from typing import List, Dict, Tuple
 
-from utils import setup_logging, save_token_usage, load_content, parse_taml_ref, load_dataset
+from utils import setup_logging, save_token_usage, load_content, parse_yaml_ref, load_dataset
 from llm.interface import LLMInterface
 from strategies import get_evolution_strategy
 from generation.filesystem import get_initial_population_path
@@ -20,7 +20,7 @@ def main():
     parser.add_argument("--model-name", default="gpt-4o", help="モデル名")
     parser.add_argument("--adapter-type", required=True, help="アダプター種別")
     parser.add_argument("--task-definition", required=True, help="タスク定義ファイル")
-    parser.add_argument("--dataset", help="データセットパス (Optional: TAML参照を上書き)")
+    parser.add_argument("--dataset", help="データセットパス (Optional: YAML参照を上書き)")
     
     args = parser.parse_args()
 
@@ -40,13 +40,13 @@ def main():
         logger.info(f"Loading dataset from provided arg: {dataset_path}")
         dataset = load_dataset(dataset_path)
     else:
-        # Load from TAML ref
-        ref_info = parse_taml_ref(args.task_definition)
+        # Load from YAML ref
+        ref_info = parse_yaml_ref(args.task_definition)
         if "dataset" in ref_info:
             dataset_path = ref_info["dataset"]
             if not os.path.isabs(dataset_path):
                 dataset_path = os.path.abspath(dataset_path)
-            logger.info(f"Loading dataset from TAML ref: {dataset_path}")
+            logger.info(f"Loading dataset from YAML ref: {dataset_path}")
             dataset = load_dataset(dataset_path)
         else:
              # Dummy single row
@@ -60,7 +60,7 @@ def main():
     
     # Save generic info if needed? 
     # Maybe save the task_def here for reference
-    shutil.copy(args.task_definition, os.path.join(base_output_dir, "task_definition.taml"))
+    shutil.copy(args.task_definition, os.path.join(base_output_dir, "task_definition.yaml"))
     
     strategy = get_evolution_strategy("ga") # Default strategy for initialization is typically uniform (random/ga)
 
@@ -98,7 +98,7 @@ def main():
         # Determine Task Name
         try:
             task_def_basename = os.path.basename(args.task_definition)
-            if task_def_basename.startswith("task_") and task_def_basename.endswith(".taml"):
+            if task_def_basename.startswith("task_") and task_def_basename.endswith(".yaml"):
                 context["task_name"] = task_def_basename[5:-5]
         except: pass
         

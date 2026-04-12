@@ -28,20 +28,20 @@ class LLMEvaluator(Evaluator):
     def _ensure_prompts(self):
         if not self.prompts:
             import os
-            from utils import load_taml_sections
+            from utils import load_yaml
             
             strategy_name = "judge"
             # Default path (root of prompts)
-            path = os.path.join(os.getcwd(), "config", "definitions", "prompts", f"{strategy_name}.taml")
+            path = os.path.join(os.getcwd(), "config", "definitions", "prompts", f"{strategy_name}.yaml")
             
             # Task-specific path if available
             if self.context and "task_name" in self.context:
                 task_name = self.context["task_name"]
-                task_path = os.path.join(os.getcwd(), "config", "definitions", "prompts", task_name, f"{strategy_name}.taml")
+                task_path = os.path.join(os.getcwd(), "config", "definitions", "prompts", task_name, f"{strategy_name}.yaml")
                 if os.path.exists(task_path):
                     path = task_path
             
-            self.prompts = load_taml_sections(path)
+            self.prompts = load_yaml(path)
 
     def evaluate(self, text: str, target: str) -> Tuple[float, str]:
         """

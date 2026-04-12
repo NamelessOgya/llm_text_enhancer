@@ -52,9 +52,9 @@ ensemble_exp,5,10,gpt-4o,llm,Title generation,Funny,ensemble,"ga:0.5,textgrad:0.
 CSVなどの外部データセットを用いた実験も可能です。
 
 1. **データセットの用意**: `data/` 配下にCSVファイルを配置します (例: `data/dummy_tldr.csv`)。
-2. **タスク定義**: `.taml` ファイルの `[ref]` セクションでデータセットとカラムを指定します。
+2. **タスク定義**: `.yaml` ファイルの `[ref]` セクションでデータセットとカラムを指定します。
 
-```taml
+```yaml
 [content]
 以下のテキストを要約してください。
 {{ content }}

@@ -32,7 +32,7 @@ def save_input_configs(args: argparse.Namespace, ref_info: Dict[str, str]):
     
     Args:
         args (argparse.Namespace): コマンドライン引数
-        ref_info (Dict[str, str]): TAMLから解析された参照情報
+        ref_info (Dict[str, str]): YAMLから解析された参照情報
     """
     if args.iteration != 0:
         return
@@ -40,7 +40,7 @@ def save_input_configs(args: argparse.Namespace, ref_info: Dict[str, str]):
     input_save_dir = os.path.join(args.result_dir, "input")
     os.makedirs(input_save_dir, exist_ok=True)
     
-    # 1. Task Definition (TAML)
+    # 1. Task Definition (YAML)
     if os.path.exists(args.task_definition):
         try:
             shutil.copy(args.task_definition, input_save_dir)

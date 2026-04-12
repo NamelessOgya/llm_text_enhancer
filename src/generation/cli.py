@@ -4,7 +4,7 @@ import argparse
 import logging
 from typing import Dict, Any
 
-from utils import setup_logging, save_token_usage, load_content, parse_taml_ref, load_dataset
+from utils import setup_logging, save_token_usage, load_content, parse_yaml_ref, load_dataset
 from llm.factory import get_llm_adapter
 from .filesystem import save_input_configs, setup_row_directories, save_generation_results
 from .executor import load_or_generate_initial_population, evolve_population
@@ -30,7 +30,7 @@ def main():
     llm = get_llm_adapter(args.adapter_type, args.model_name)
     
     raw_task_def_content = load_content(args.task_definition)
-    ref_info = parse_taml_ref(args.task_definition)
+    ref_info = parse_yaml_ref(args.task_definition)
     
     dataset = []
     if "dataset" in ref_info:
@@ -75,7 +75,7 @@ def main():
             
         try:
             task_def_basename = os.path.basename(args.task_definition)
-            if task_def_basename.startswith("task_") and task_def_basename.endswith(".taml"):
+            if task_def_basename.startswith("task_") and task_def_basename.endswith(".yaml"):
                 context["task_name"] = task_def_basename[5:-5]
         except: pass
 

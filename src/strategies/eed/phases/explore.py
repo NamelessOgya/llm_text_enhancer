@@ -81,9 +81,9 @@ def run_explore_phase(
             existing_personas.append(target_persona)
             
             # B. Argument Generation (Skipped for simplicity or merged? Code below merges it into Generation or separate?)
-            # TAML has arg_gen_prompt, let's use it if we want detailed control, 
+            # YAML has arg_gen_prompt, let's use it if we want detailed control, 
             # But normally Explore creates a text based on Persona + Norm deviation.
-            # Let's verify TAML usage. The `explore_gen_prompt` depends on `target_argument`.
+            # Let's verify YAML usage. The `explore_gen_prompt` depends on `target_argument`.
             
             arg_prompt = strategy.prompts["arg_gen_prompt"].format(
                 task_def=task_def,
